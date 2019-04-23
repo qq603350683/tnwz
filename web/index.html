@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no,minimal-ui" name="viewport">
+    <meta name="apple-touch-fullscreen" content="YES">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta http-equiv="Expires" content="-1">
+    <link rel="stylesheet" type="text/css" href="css/index.css">
+	<title>Loading</title>
+</head>
+<body>
+    <!--loading-----start--->
+    <div id="loading">
+        <div class="loading-main">
+            <img id="loading-logo" src="images/title.png">
+        </div>
+        <div id="loading-num">0%</div>
+        <div id="loading-process"></div>
+        <div id="loading-process-now"></div>
+    </div>
+    <!--loading-----end--->
+    <div id="message" class="animated bounceInDown">
+        <div id="message-cate"><img src=""></div>
+        <div id="message-info">message</div>
+    </div>
+
+
+    <!--首页-----start-->
+    <div id="index" class="animated mainIn">
+        <div id="user">
+            <div id="avatar" class="avatarIn">
+                <img src="">
+            </div>
+            <div id="nickname">昵称</div>
+            <div id="lever">
+                <div id="exp-progress"></div>
+                <div id="exp"></div>
+                <div id="lv">LV.<span>0</span></div>
+            </div>
+            <div id="user-gold">
+                <img src="images/gold.png">
+                <span>0</span>
+            </div>
+        </div>
+        <div id="page-left">
+            <div id="ranking">
+                <!-- 排位赛 -->
+            </div>
+            <div id="gold">
+                <!-- 金币 -->
+            </div>
+            <div id="setting">
+                <!-- 设置 -->
+            </div>
+        </div>
+        <div id="page-right">
+            <div id="ranking-list-btn">
+                <!-- 排行榜 -->
+            </div>
+            <div id="goods">
+                <!-- 道具 -->
+            </div>
+            <div id="shop">
+                <!-- 商店 -->
+            </div>
+        </div>
+    </div>
+    <!--首页-----end-->
+
+    <!--排行榜-----start-->
+    <div id="ranking-list">
+        <div id="ranking-header">
+            <span>世界排行</span>
+        </div>
+        <div class="ranking-line"></div>
+        <div class="ranking-underline"></div>
+        <ul id="ranking-main">
+            <div class="loading">
+                <img class="spin" src="images/loading.png">
+                <span>正在加载中...</span>
+            </div>
+        </ul>
+        <div id="ranking-close">返回</div>
+    </div>
+    <!--排行榜-----end-->
+
+    <!--排位排队-----start-->
+    <div id="ranking-loading">
+        <div class="cir_0"></div>
+        <div class="cir_1">
+            <img class="img_1" src="images/ranking_1.png">
+            <img class="img_2" src="images/ranking_3.png">
+            <img class="img_3" src="images/ranking_6.png">
+        </div>
+        <div class="cir_2">
+            <img class="img_1" src="images/ranking_2.png">
+            <img class="img_2" src="images/ranking_4.png">
+            <img class="img_3" src="images/ranking_5.png">
+        </div>
+        <div id="ranking-avatar">
+            <img src="">
+        </div>
+        <ul>
+            <li id="ranking-nickname"></li>
+            <li id="ranking-city"></li>
+            <li id="ranking-lv">LV.<span></span></li>
+            <li id="ranking-gold">
+                <img src="images/gold.png">
+                <span></span>
+            </li>
+        </ul>
+        <div id="ranking-loading-close">返回</div>
+    </div>
+    <!--排位排队-----end-->
+
+
+    <!--PK-----start-->
+    <div id="pk-info">
+        <!-- <div id="me-pk-info" class="pk_0 animated bounceInLeft">
+            <div><img src=""></div>
+            <span>_Luo</span>
+            <br >
+            <span>来自:广州</span>
+        </div>
+        <div id="opponents-pk-info" class="pk_1 animated bounceInRight">
+            <div><img src=""></div>
+            <span>_Luo</span>
+            <br >
+            <span>来自:广州</span>
+        </div>
+        <img id="pk-logo" class="animated zoomIn" src="images/title.png"> -->
+    </div>
+    <!--PK-----end-->
+
+
+    <!--PK-->
+    <div id="pk">
+        <div id="pk-header">
+            <div id="pk-user-left">
+                <img src="images/avatar.png">
+            </div>
+            <div id="pk-time">
+                <div id="pk-time-num">20</div>
+            </div>
+            
+            <div id="pk-user-right">
+                <img src="images/avatar.png">
+            </div>
+        </div>
+        <div id="pk-main">
+            <p id="pk-question" class="animated bounceIn">下列哪个成语与项羽有关系？？？？？？啊啊啊啊啊啊啊啊啊<span id="question-num">4</span></p>
+        </div>
+        <div id="pk-footer">
+            <div id="pk-process-left">
+                <div id="pk-process-left-num"></div>
+            </div>
+            <div id="pk-item-main">
+                <div id="item_a" class="animated slideInUp answer-true">
+                    <div class="my-answer answer-show"><img src="images/true.png"></div>
+                    <div class="options">答案1答案1答案1答案1答案1答案1</div>
+                    <div class="opponent-answer"><img src="images/false.png"></div>
+                </div>
+                <div id="item_b" class="animated slideInUp answer-false">
+                    <div class="my-answer"><img src="images/true.png"></div>
+                    <div class="options">答案1</div>
+                    <div class="opponent-answer answer-show"><img src="images/false.png"></div>
+                </div>
+                <div id="item_c" class="animated slideInUp">
+                    <div class="my-answer"><img src="images/true.png"></div>
+                    <div class="options">答案1</div>
+                    <div class="opponent-answer"><img src="images/false.png"></div>
+                </div>
+                <div id="item_d" class="animated slideInUp">
+                    <div class="my-answer"><img src="images/true.png"></div>
+                    <div class="options">答案1</div>
+                    <div class="opponent-answer"><img src="images/false.png"></div>
+                </div>
+            </div>
+            <div id="pk-process-right">
+                <div id="pk-process-right-num"></div>
+            </div>
+        </div>
+    </div>
+    <!--PK-->
+
+    
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script type="text/javascript" src="js/index.js"></script>
+</body>
+</html>
