@@ -23,10 +23,11 @@ class Topics extends Model
 			return [];
 
 		foreach ($topics as $key => $value) {
-			$answers[$key] = $value['answer'];
+			$questions['question_' . $key] = $value['question'];
+			$answers['answer_' . $key]     = $value['answer'];
 			unset($topics[$key]['answer']);
 		}
 
-		return ['topics' => $topics, 'answers' => $answers];
+		return ['topics' => $topics, 'questions' => $questions, 'answers' => $answers];
 	}
 }

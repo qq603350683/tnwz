@@ -12,11 +12,21 @@ class Ranking {
 	 */
 	public static function join($u_id)
 	{
-		$res = Redis::command('sismember', [REDIS_NAME['ranking'], $u_id]);
-		if ($res)
-			return true;
-		$res = Redis::command('sadd', [REDIS_NAME['ranking'], $u_id]);
-		return $res ? true : false;
+		$res = Redis::pipeline(function($pipe) use ($u_id) {
+			//判断是否重复加入队列
+			$pipe->sismember(REDIS_KEYS['ranking'], $u_id);
+
+			//判断是否正在PK中。
+			$pipe->sismember(REDIS_KEYS['rooms'], $u_id);
+		});
+		if ($res[0])
+			return -4005;
+
+		if ($res[1])
+			return -4006;
+
+		$res = Redis::command('sadd', [REDIS_KEYS['ranking'], $u_id]);
+		return $res ? true : -4007;
 	}
 
 
@@ -27,9 +37,25 @@ class Ranking {
 	 */
 	public static function joins($u_ids)
 	{
+		$res = Redis::pipeline(function($pipe) use ($u_ids) {
+			foreach ($u_ids as $key => $value) {
+				//判断是否重复加入队列
+				$pipe->sismember(REDIS_KEYS['ranking'], $value);
+
+				//判断是否正在PK中。
+				$pipe->sismember(REDIS_KEYS['rooms'], $value);
+			}
+		});
+
+		dump('这里要做检查~~~~~~', $res)
+		if (in_array(false, $res)) {
+
+		}
+		
+
 		return Redis::pipeline(function($pipe) use ($u_ids) {
 			foreach ($u_ids as $key => $value) {
-				$pipe->sadd(REDIS_NAME['ranking'], $value);
+				$pipe->sadd(REDIS_KEYS['ranking'], $value);
 			}
         });
 	}
@@ -43,11 +69,11 @@ class Ranking {
 	 */
 	public static function quit($u_id)
 	{
-		$res = Redis::command('sismember', [REDIS_NAME['ranking'], $u_id]);
+		$res = Redis::command('sismember', [REDIS_KEYS['ranking'], $u_id]);
 		if (!$res)
 			return false;
 
-		$res = Redis::command('srem', [REDIS_NAME['ranking'], $u_id]);
+		$res = Redis::command('srem', [REDIS_KEYS['ranking'], $u_id]);
 		return $res ? true : false;
 	}
 
@@ -60,7 +86,7 @@ class Ranking {
 	 */
 	public static function len()
 	{
-		$len = Redis::scard(REDIS_NAME['ranking']);
+		$len = Redis::scard(REDIS_KEYS['ranking']);
 		return $len;
 	}
 
@@ -75,7 +101,7 @@ class Ranking {
 	{
 		return Redis::pipeline(function($pipe) use ($count) {
 			for ($i=0; $i < $count; $i++) { 
-				$pipe->spop(REDIS_NAME['ranking']);
+				$pipe->spop(REDIS_KEYS['ranking']);
 			}
         });
 	}

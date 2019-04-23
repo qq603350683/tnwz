@@ -41,7 +41,7 @@ class Tnwz extends Command
      */
     public function __construct()
     {
-        define('REDIS_NAME', [
+        define('REDIS_KEYS', [
             'fds'     => $this->prefix . 'fd',      //u_id -> fd
             'u_ids'   => $this->prefix . 'u_id',    //fd -> u_id
             'ranking' => $this->prefix . 'ranking', //排队队列
@@ -70,10 +70,11 @@ class Tnwz extends Command
         ]);
 
         //清空Redis
-        foreach (REDIS_NAME as $key => $value) {
+        foreach (REDIS_KEYS as $key => $value) {
             $hdel[] = $value;
         }
         Redis::command('del', $hdel);
+        Redis::del('*.' . $this->prefix);
 
         $this->ws->on('open', [$this, 'onOpen']);
         $this->ws->on('message', [$this, 'onMessage']);
@@ -122,12 +123,12 @@ class Tnwz extends Command
         //保存到redis
         $hset = [
             [
-                'key'   => REDIS_NAME['fds'],
+                'key'   => REDIS_KEYS['fds'],
                 'field' => 'fd_' . $request->fd,
                 'value' => $u_id
             ],
             [
-                'key'   => REDIS_NAME['u_ids'],
+                'key'   => REDIS_KEYS['u_ids'],
                 'field' => 'u_id_' . $u_id,
                 'value' => $request->fd
             ]
@@ -162,7 +163,7 @@ class Tnwz extends Command
 
         $data['case'] = $data['case'] ?? '';
 
-        $u_id = Redis::command('hget', [REDIS_NAME['fds'], 'fd_' . $request->fd]);
+        $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $request->fd]);
         if (!$u_id) {
             $resp = Response::json('系统出现了一点错误，请重新连接~', -1);
             $this->push($request->fd, $resp);
@@ -174,7 +175,7 @@ class Tnwz extends Command
             case 'join_ranking':
                 //加入PK排队队列
                 $res = Ranking::join($u_id);
-                dump('u_id: ' . $u_id . ' 加入排位排队' . ($res == true ? '成功' : '失败'));
+                dump('u_id: ' . $u_id . ' 加入排位排队' . ($res == true ? '成功' : '失败' . $res));
                 break;
             
             case 'quit_ranking':
@@ -200,22 +201,22 @@ class Tnwz extends Command
         dump('server:close success');
         dump('close fd is ' . $fd);
 
-        $u_id = Redis::command('hget', [REDIS_NAME['fds'], 'fd_' . $fd]);
+        $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $fd]);
         dump('del u_id is ' . $u_id);
         if ($u_id > 0) {
             $hdel = [
                 [
-                    'key'   => REDIS_NAME['fds'],
+                    'key'   => REDIS_KEYS['fds'],
                     'field' => 'fd_' . $fd
                 ],
                 [
-                    'key'   => REDIS_NAME['u_ids'],
+                    'key'   => REDIS_KEYS['u_ids'],
                     'field' => 'u_id_' . $u_id
                 ]
             ];
             Redis::pipeline(function($pipe) use ($u_id, $hdel) {
                 //删除排位
-                $pipe->srem(REDIS_NAME['ranking'], $u_id);
+                $pipe->srem(REDIS_KEYS['ranking'], $u_id);
 
                 //删除关联数据
                 foreach ($hdel as $key => $value) {
@@ -242,10 +243,11 @@ class Tnwz extends Command
 
                 $u_ids = Ranking::random(2);
 
-                $fds = Redis::pipeline(function($pipe) use ($u_ids) {
-                    foreach ($u_ids as $key => $value) {
-                        $pipe->hget(REDIS_NAME['fds'], 'fd_' . $value);
-                    }
+                $left_u_id = $u_ids[0];
+                $right_u_id = $u_ids[1];
+
+                $fds = Redis::pipeline(function($pipe) use ($left_u_id, $right_u_id) {
+                    $pipe->hget(REDIS_KEYS['fds'], 'fd_' . $left_u_id, 'fd_' . $right_u_id);
                 });
 
                 if (empty($fds) || count($fds) != 2) {
@@ -253,21 +255,35 @@ class Tnwz extends Command
                 }
 
                 //生成房间信息
-                $flag = true;
+                $flags = true;
                 do {
                     $room_id = $this->prefix . mt_rand(1000, 9999);
-                    $flag = Redis::sismember(REDIS_NAME['rooms'], $room_id);
-                } while($flag);
-
-                
+                    $flags = Redis::exists($room_id);
+                } while($flags);
 
                 $topics = Topics::random(10);
+                Redis::pipeline(function($pipe) use ($room_id, $left_u_id, $right_u_id, $topics) {
+                    //插入房间信息
+                    $pipe->hset(REDIS_KEYS['rooms'], $left_u_id, $room_id, $right_u_id, $room_id);
 
-                $user = Users::info($u_ids[0]);
+                    $count = count($topics['questions']);
+                    $params = [$room_id, 'left_u_id', $left_u_id, 'right_u_id', $right_u_id, 'start_time', time(), 'current_topic_id', 0, 'last_topic_id', $count - 1];
+
+                    for ($i=0; $i < $count; $i++) {
+                        $params[] = 'question_' . $i;
+                        $params[] = $topics['questions']['question_' . $i];
+                        $params[] = 'answer_' . $i;
+                        $params[] = $topics['answers']['answer_' . $i];
+                    }
+
+                    call_user_func_array([$pipe, 'hset'], $params);
+                });
+
+                $user = Users::info($left_u_id);
                 $resp = Response::json('匹配到对手啦~', 201, ['user' => $user, 'topics' => $topics['topics']]);
                 $this->push($fds[1], $resp);
 
-                $user = Users::info($u_ids[1]);
+                $user = Users::info($right_u_id);
                 $resp = Response::json('匹配到对手啦~', 201, ['user' => $user, 'topics' => $topics['topics']]);
                 $this->push($fds[0], $resp);
             });
