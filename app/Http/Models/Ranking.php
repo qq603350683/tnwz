@@ -19,14 +19,14 @@ class Ranking {
 			//判断是否正在PK中。
 			$pipe->sismember(REDIS_KEYS['rooms'], $u_id);
 		});
-		if ($res[0])
-			return -4005;
-
-		if ($res[1])
+		if ($res[0] == 1)
 			return -4006;
 
+		if ($res[1] == 1)
+			return -4007;
+
 		$res = Redis::command('sadd', [REDIS_KEYS['ranking'], $u_id]);
-		return $res ? true : -4007;
+		return $res ? true : -1;
 	}
 
 
@@ -47,7 +47,7 @@ class Ranking {
 			}
 		});
 
-		dump('这里要做检查~~~~~~', $res)
+		dump('这里要做检查~~~~~~', $res);
 		if (in_array(false, $res)) {
 
 		}

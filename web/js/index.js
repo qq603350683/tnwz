@@ -249,6 +249,18 @@
 			case -4005:
 				Base.message('warning', '请勿重复登录...', 9999999);
 				return false;
+			case -4006:
+				Base.message('warning', data.message);
+				setTimeout(function(){
+					Ranking.quit();
+				}, 1000);
+				return false;
+			case -4007:
+				Base.message('warning', data.message);
+				setTimeout(function(){
+					Ranking.quit();
+				}, 1000);
+				return false;
 				break;
 		}
 		return true;
@@ -784,8 +796,8 @@
 
 	//------------------------------------------------------------------连接Websocket-----start----------------------------
 	var WsServicer = window.WsServicer = function() {
-		// this.host = 'ws://192.168.26.129';
-		this.host = 'ws://192.168.83.133';
+		this.host = 'ws://192.168.26.129';
+		// this.host = 'ws://192.168.83.133';
 		this.prot = '9501';
 		
 	};

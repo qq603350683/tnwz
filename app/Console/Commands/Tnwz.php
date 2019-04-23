@@ -175,7 +175,28 @@ class Tnwz extends Command
             case 'join_ranking':
                 //加入PK排队队列
                 $res = Ranking::join($u_id);
-                dump('u_id: ' . $u_id . ' 加入排位排队' . ($res == true ? '成功' : '失败' . $res));
+                if ($res == -4006) {
+                    dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
+                    $resp = Response::json('您已经在排队队列中了~', $res);
+                    $this->push($request->fd, $resp);
+                    return;
+                }
+
+                if ($res == -4007) {
+                    dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
+                    $resp = Response::json('您正在PK呢！', $res);
+                    $this->push($request->fd, $resp);
+                    return;
+                }
+
+                if ($res == -1) {
+                    dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
+                    $resp = Response::json('系统出现了一点错误，请重新连接', $res);
+                    $this->push($request->fd, $resp);
+                    return;
+                }
+
+                dump('u_id: ' . $u_id . ' 加入排位排队失败成功');
                 break;
             
             case 'quit_ranking':
