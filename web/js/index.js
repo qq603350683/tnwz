@@ -95,7 +95,7 @@
 
 	//------------------------------------------------------------------基础操作类-----start----------------------------
 	var Base = window.Base = function() {
-		this.messageStatus = true;
+
 	};
 
 	Base.prototype.dom = function(id, _class, callback) {
@@ -225,11 +225,11 @@
 				PK.status = 0;
 				break;
 			case -1:
-				Base.message('warning', data.message);
+				Message.show('warning', data.message);
 				return false;
 				break;
 			case -4001:
-				Base.message('warning', '系统出现了一些错误，请稍后再试');
+				Message.show('warning', '系统出现了一些错误，请稍后再试');
 				return false;
 				break;
 			case -4002:   //活动尚未开始
@@ -243,56 +243,27 @@
 				return false;
 				break;
 			case -4004:
-				Base.message('warning', '游戏尚未配置上线成功，请联系管理员', 9999999);
+				Message.show('warning', '游戏尚未配置上线成功，请联系管理员', 9999999);
 				return false;
 				break;
 			case -4005:
-				Base.message('warning', '请勿重复登录...', 9999999);
+				Message.show('warning', '请勿重复登录...', 9999999);
 				return false;
 			case -4006:
-				Base.message('warning', data.message);
-				setTimeout(function(){
+				Message.show('warning', data.message);
+				setTimeout(function() {
 					Ranking.quit();
 				}, 1000);
 				return false;
 			case -4007:
-				Base.message('warning', data.message);
-				setTimeout(function(){
+				Message.show('warning', data.message);
+				setTimeout(function() {
 					Ranking.quit();
 				}, 1000);
 				return false;
 				break;
 		}
 		return true;
-	};
-
-	//提示信息
-	Base.prototype.message = function(type, msg, time) {
-		var self = this;
-		if (self.messageStatus == false)
-			return false;
-		self.messageStatus = false;
-		time = !time ? 2000 : time; 
-		switch(type) {
-			case 'success': 
-				var img = 'images/success.gif';
-				break;
-			case 'fail':
-				var img = 'images/fail.png';
-				break;
-			case 'warning':
-				var img = 'images/warning.png';
-				break;
-		}
-		message.getElementsByTagName('img')[0].setAttribute('src', img);
-		message_info.innerHTML = msg;
-		message.setAttribute('class', 'animated bounceInDown');
-		Base.css(message, {'display':'block'}, function() {
-			setTimeout(function() {
-				message.setAttribute('class', 'animated bounceOutUp');
-				self.messageStatus = true;
-			}, time);
-		});
 	};
 
 	//获取URL的参与
@@ -318,6 +289,64 @@
 		}
 	};
 	//------------------------------------------------------------------基础操作类-----end------------------------------
+
+	//--------------------------------------------------------------------信息提示类---------------------------
+	var Message = window.Message = function() {
+		this.status = true;
+		this.setTimeOutID = '';
+	};
+
+
+	//提示信息
+	Message.prototype.show = function(type, msg, time) {
+		var self = this;
+		time = !time ? 2000 : time; 
+		switch(type) {
+			case 'success': 
+				var img = 'images/success.gif';
+				break;
+			case 'fail':
+				var img = 'images/fail.png';
+				break;
+			case 'warning':
+				var img = 'images/warning.png';
+				break;
+		}
+		message.getElementsByTagName('img')[0].setAttribute('src', img);
+		message_info.innerHTML = msg;
+
+		if (self.status == false) {
+			clearTimeout(this.setTimeOutID);
+			this.setTimeOutID = '';
+			
+		} else {
+			self.status = false;
+			message.setAttribute('class', 'animated bounceInDown');
+			Base.css(message, {'display':'block'}, function() {
+				self.setTimeOutID = setTimeout(function() {
+					message.setAttribute('class', 'animated bounceOutUp');
+					self.status = true;
+					self.setTimeOutID = '';
+				}, time);
+			});
+		}
+	};
+
+
+	//停止消息提示
+	Message.prototype.hide = function() {
+		if (this.setTimeOutID != '') {
+			clearTimeout(this.setTimeOutID);
+			this.setTimeOutID = '';
+		}
+
+		if (this.status == false) {
+			message.setAttribute('class', 'animated bounceOutUp');
+			self.status = true;
+			self.setTimeOutID = '';
+		}
+	}
+
 
 	//------------------------------------------------------------------游戏-----start------------------------------
 	var Game = window.Game = function() {
@@ -387,15 +416,15 @@
 	Game.prototype.active = function() {
 		switch(is_active) {
 			// case 0:
-			// 	Base.message('warning', '正在连接服务器。。。');
+			// 	Message.show('warning', '正在连接服务器。。。');
 			// 	return false;
 			// 	break;
 			case -4002:
-				Base.message('warning', '活动尚未开始');
+				Message.show('warning', '活动尚未开始');
 				return false;
 				break;
 			case -4003:
-				Base.message('warning', '活动已经结束');
+				Message.show('warning', '活动已经结束');
 				return false;
 				break;
 		}
@@ -796,8 +825,8 @@
 
 	//------------------------------------------------------------------连接Websocket-----start----------------------------
 	var WsServicer = window.WsServicer = function() {
-		this.host = 'ws://192.168.26.129';
-		// this.host = 'ws://192.168.83.133';
+		// this.host = 'ws://192.168.26.129';
+		this.host = 'ws://192.168.83.133';
 		this.prot = '9501';
 		
 	};
@@ -878,22 +907,46 @@
 	//连接关闭
 	WsServicer.prototype.close = function(e) {
 		console.log('WebSocket connection close');
+
+		Message.show('warning', '网络异常，正在为您重新连接，请检查您的网络是否异常', 20000);
+
+
 	};
 
 	//连接错误
 	WsServicer.prototype.error = function(e) {
 		console.log('WebSocket connection fail');
+		Message.show('warning', '服务器出现异常，请稍后再试', 99999999);
 	};
 
 	//发送消息
 	WsServicer.prototype.send = function(data) {
-		this.ws.readyState == 1 ? this.ws.send(data) : this.sendFail(data);
+		if (this.ws.readyState != 1){
+			console.log('current execute resend', data);
+			this.connection();
+
+			setTimeout(function() {
+				Message.show('success', '已成功重新连接服务器');
+				WsServicer.ws.send(data);
+			}, 500)
+		} else {
+			console.log('current execute send', data);
+			this.ws.send(data);
+		}
+	}
+
+	//发送心跳包
+	WsServicer.prototype.heartbeat = function() {
+		var heartbeat = JSON.stringify({
+			'case' : 'heartbeat'
+		});
+		this.send(heartbeat);
 	}
 
 	//发送失败
 	WsServicer.prototype.sendFail = function(data) {
 		data = data == '' ? '{"case":"none"}' : JSON.parse(data);
-		Base.message('warning', '发送失败，请检查您的网络是否异常');
+
 		switch(data.case) {
 			case 'pk_queue':
 				//退出排队
@@ -902,10 +955,23 @@
 				}, 2000);
 				break;
 		}
+
+		this.connection();
+		setTimeout(function() {
+			if (WsServicer.ws.readyState != 1) {
+				this.sendFail();
+			} else {
+				Message.hide();
+				setTimeout(function() {
+					Message.show('success', '服务器连接成功');
+				}, 500);
+			}
+		}, 500);
 	}
 	//------------------------------------------------------------------连接Websocket-----end----------------------------
 
 	var Base = new Base();
+	var Message = new Message();
 	var Game = new Game();
 	var Ranking = new Ranking();
 	var User = new User();
@@ -973,11 +1039,21 @@
     //排位排队关闭按钮
     ranking_loading_close.onclick = function() {
     	if (PK.status == 1) {
-    		Base.message('warning', '已经匹配到对手了...');
+    		Message.show('warning', '已经匹配到对手了...');
     		return false;
     	}
     	WsServicer.send(WsServicer.quitQueue);
     	Ranking.quit();
+    };
+
+    //设置点击
+    setting.onclick = function() {
+    	WsServicer.ws.close();
+    };
+
+    //商店点击
+    shop.onclick = function() {
+    	Message.hide();
     };
 
     //模拟打开匹配成功

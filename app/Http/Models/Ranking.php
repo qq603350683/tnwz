@@ -26,7 +26,7 @@ class Ranking {
 			return -4007;
 
 		$res = Redis::command('sadd', [REDIS_KEYS['ranking'], $u_id]);
-		return $res ? true : -1;
+		return $res ? 1 : -1;
 	}
 
 
