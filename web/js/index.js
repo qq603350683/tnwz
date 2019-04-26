@@ -8,7 +8,7 @@
 		'user_info' : 'users',
 	};
 	var params = {
-		'title' : '正在加载中...',
+		'title' : '？？？',
 		'ranking_loading' : 'PK',
 		'ranking_list' : '排行榜'
 	};
@@ -685,8 +685,12 @@
 					Ranking.reset();
 					pk.innerHTML = self.headerHtml + PK.topicHtml(PK.topic, PK.currentTopicNum);
 					Base.css(document.getElementById('pk-main'), {'width' : clientCssWidth + 'px'});
-					PK.countdown(countdown);
-					self.itemBindClick();
+					self.itemBindClick(PK.topic[0]['a'], PK.topic[0]['b'], PK.topic[0]['c'], PK.topic[0]['d']);
+
+					setTimeout(function() {
+						Base.css(pk, {'display' : 'block'});
+						PK.countdown(countdown);
+					}, 2000)
 				});
 			},1000);
 		});
@@ -709,6 +713,12 @@
 				pk.innerHTML = PK.headerHtml + PK.topicHtml(PK.topic, PK.currentTopicNum);
 				Base.css(document.getElementById('pk-main'), {'width' : clientCssWidth + 'px'});
 				_countdown = countdown;
+
+				PK.itemStatus = 0;
+
+				setTimeout(function() {
+					self.itemBindClick(PK.topic[PK.currentTopicNum]['a'], PK.topic[PK.currentTopicNum]['b'], PK.topic[PK.currentTopicNum]['c'], PK.topic[PK.currentTopicNum]['d']);
+				}, 200);
 			} else {
 				_countdown--;
 				document.getElementById("pk-time-num").innerText = _countdown;
@@ -782,11 +792,19 @@
 	};
 
 	//PK答案绑定事件
-	PK.prototype.itemBindClick = function() {
-		document.getElementById('item_a').onclick = this.itemClick;
-		document.getElementById('item_b').onclick = this.itemClick;
-		document.getElementById('item_c').onclick = this.itemClick;
-		document.getElementById('item_d').onclick = this.itemClick;
+	PK.prototype.itemBindClick = function(a, b, c, d) {
+		console.log(a, b, c, d)
+		if (a)
+			document.getElementById('item_a').onclick = this.itemClick;
+
+		if (b)
+			document.getElementById('item_b').onclick = this.itemClick;
+
+		if (c)
+			document.getElementById('item_c').onclick = this.itemClick;
+
+		if (d)
+			document.getElementById('item_d').onclick = this.itemClick;
 
 	};
 
@@ -1051,18 +1069,8 @@
     	Ranking.quit();
     };
 
-    //设置点击
-    setting.onclick = function() {
-    	WsServicer.ws.close();
-    };
-
-    //商店点击
-    shop.onclick = function() {
-    	Message.hide();
-    };
-
     //模拟打开匹配成功
-    // shop.onclick = function() {
+    shop.onclick = function() {
     	var ds = {
     		'data' : {
     			'user' : {
@@ -1073,7 +1081,7 @@
 	    			'u_id' : 2,
 	    			'wx_avatar' : 'http://192.168.26.129/answer/web/images/avatar.png'
     			},
-    			'topic' : [
+    			'topics' : [
     				{
     					'ts_id' : 1,
     					'question' : '大煮干丝”是哪个菜系的代表菜之一',
@@ -1082,7 +1090,6 @@
     					'b' : '山东菜系',
     					'c' : '广东菜系',
     					'd' : '淮扬菜系',
-    					'answer' : 'd'
     				},
     				{
     					'ts_id' : 2,
@@ -1092,7 +1099,6 @@
     					'b' : '发酵',
     					'c' : '不发酵',
     					'd' : '微发酵',
-    					'answer' : 'a'
     				},
     				{
     					'ts_id' : 1,
@@ -1102,16 +1108,15 @@
     					'b' : '含脂肪',
     					'c' : '含糖',
     					'd' : '',
-    					'answer' : 'c'
     				}
     			]
     		},
-    		'info' : '匹配到对手啦~',
-    		'status' : 201
+    		'message' : '匹配到对手啦~',
+    		'code' : 201
     	};
     	// WsServicer.connection();
-    	// Base.response(ds);
-    // }
+    	Base.response(ds);
+    }
     // setTimeout(function() {
     // 	Base.css(loading, {'display' : 'none'});
     // 	Base.css(index, {'display' : 'block'});
