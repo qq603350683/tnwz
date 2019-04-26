@@ -67,8 +67,8 @@ class Tnwz extends Command
             'task_worker_num'          => 4,
             'max_request'              => 2000,    //
             'backlog'                  => 128,     //Listen队列长度,
-            // 'heartbeat_check_interval' => 3,       //每30秒历遍一次
-            // 'heartbeat_idle_time'      => 10,      //60秒内没收到任何信息链接强制关闭
+            'heartbeat_check_interval' => 10,      //每10秒历遍一次
+            'heartbeat_idle_time'      => 25,      //25秒内没收到任何信息链接强制关闭
         ]);
 
         //清空Redis

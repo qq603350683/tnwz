@@ -8,7 +8,7 @@
 		'user_info' : 'users',
 	};
 	var params = {
-		'title' : '？？？',
+		'title' : '正在加载中...',
 		'ranking_loading' : 'PK',
 		'ranking_list' : '排行榜'
 	};
@@ -318,18 +318,18 @@
 		if (self.status == false) {
 			clearTimeout(this.setTimeOutID);
 			this.setTimeOutID = '';
-			
 		} else {
 			self.status = false;
 			message.setAttribute('class', 'animated bounceInDown');
-			Base.css(message, {'display':'block'}, function() {
-				self.setTimeOutID = setTimeout(function() {
-					message.setAttribute('class', 'animated bounceOutUp');
-					self.status = true;
-					self.setTimeOutID = '';
-				}, time);
-			});
 		}
+
+		Base.css(message, {'display':'block'}, function() {
+			self.setTimeOutID = setTimeout(function() {
+				message.setAttribute('class', 'animated bounceOutUp');
+				self.status = true;
+				self.setTimeOutID = '';
+			}, time);
+		});
 	};
 
 
@@ -407,6 +407,7 @@
 		    		User.init(data.user);
 		    		is_active = data.is_active;
 				    WsServicer.connection();
+				    WsServicer.heartbeat();
 		    	}, 1000);
 	    	}, 500);
 	    });
@@ -909,8 +910,6 @@
 		console.log('WebSocket connection close');
 
 		Message.show('warning', '网络异常，正在为您重新连接，请检查您的网络是否异常', 20000);
-
-
 	};
 
 	//连接错误
@@ -926,7 +925,7 @@
 			this.connection();
 
 			setTimeout(function() {
-				Message.show('success', '已成功重新连接服务器');
+				Message.show('success', '已成功重新连接服务器', 1000);
 				WsServicer.ws.send(data);
 			}, 500)
 		} else {
@@ -936,11 +935,17 @@
 	}
 
 	//发送心跳包
-	WsServicer.prototype.heartbeat = function() {
-		var heartbeat = JSON.stringify({
-			'case' : 'heartbeat'
-		});
-		this.send(heartbeat);
+	WsServicer.prototype.heartbeat = function(time) {
+		var self = this;
+		time = !time ? 10000 : time;
+
+		setTimeout(function() {
+			var heartbeat = JSON.stringify({
+				'case' : 'heartbeat'
+			});
+			self.send(heartbeat);
+			self.heartbeat(time);
+		}, time)
 	}
 
 	//发送失败
