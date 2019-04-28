@@ -222,6 +222,8 @@
 				break;
 			case 202:
 				//对手掉线或者逃跑
+				Message.show('fail', '游戏数据异常，将退出本次游戏');
+				PK.close();
 				PK.status = 0;
 				break;
 			case -1:
@@ -243,7 +245,7 @@
 				return false;
 				break;
 			case -4004:
-				Message.show('warning', '游戏尚未配置上线成功，请联系管理员', 9999999);
+				Message.show('fail', '游戏尚未配置上线成功，请联系管理员', 9999999);
 				return false;
 				break;
 			case -4005:
@@ -260,6 +262,11 @@
 				setTimeout(function() {
 					Ranking.quit();
 				}, 1000);
+				return false;
+				break;
+			case -4008:
+				Message.show('fail', '游戏数据异常，将退出本次游戏');
+				PK.close();
 				return false;
 				break;
 		}
@@ -505,6 +512,7 @@
 		this.cir_0 = Base.dom(ranking_loading, 'cir_0');
 		this.cir_1 = Base.dom(ranking_loading, 'cir_1');
 		this.cir_2 = Base.dom(ranking_loading, 'cir_2');
+		this.status = 0;
 		this.offset = 0;
 		this.limit = 20;
 		this.html = '';
@@ -516,6 +524,7 @@
 	//排位开始排位--开始转圈
 	Ranking.prototype.start = function() {
 		var self = this;
+		self.status = 1;
 		setTimeout(function() {
 			self.cir_1.setAttribute('class', 'cir_1 cir_1_0');
 			self.cir_2.setAttribute('class', 'cir_2 cir_1_5');
@@ -533,6 +542,7 @@
 		if (PK.status == 1)
     		return false;
     	PK.status = 0;
+    	this.status = 0;
     	Base.title(params.title);
     	Ranking.stop();
     	Base.topBack(ranking_loading);
@@ -648,6 +658,7 @@
 		PK.topic = data.topics;
 		PK.topicTotalNum = data.topics.length;
 		PK.currentTopicNum = 0;
+		PK.countdown_id = '';
 
 		var opponents = data.user;
 		var html = '<div class="pk_0 animated bounceInLeft"> \
@@ -700,7 +711,7 @@
 	PK.prototype.countdown = function(_countdown) {
 		var self = this;
 
-		setTimeout(function() {
+		PK.countdown_id = setTimeout(function() {
 			if (_countdown == 0) {
 				PK.currentTopicNum += 1;
 
@@ -819,6 +830,7 @@
 
 		data = WsServicer.itemSelect;
 
+		data.data.current_num = PK.currentTopicNum;
 		switch (this.id) {
 			case 'item_a': 
 				data.data.item = 'a';
@@ -836,7 +848,26 @@
 				return false;
 		}
 
-		console.log(data);
+		WsServicer.send(data);
+	};
+
+
+	//出现网络错误关闭PK
+	PK.prototype.close = function() {
+		//清空秒数倒计时
+		if (PK.countdown_id != '') {
+			clearTimeout(PK.countdown_id);
+			PK.countdown_id = '';
+		}
+
+		//清空页面
+		Base.css(pk, {'display' : 'none'});
+		Base.css(pk_info, {'display' : 'none'});
+
+		PK.status = 0;
+
+		pk_info.innerHTML = '';
+		pk.innerHTML = '';
 	};
 
 	//------------------------------------------------------------------PK-----end----------------------------
@@ -855,34 +886,23 @@
 		this.status;
 
 		//加入排队
-		this.pkStart = JSON.stringify({
+		this.pkStart = {
 			'case' : 'join_ranking',
-			'user' : {
-				'u_id' : User.u_id,
-				'unique_token' : User.unique_token
-			},
 			'data' : {}
-		});
+		};
 
 		//退出排队
-		this.quitQueue = JSON.stringify({
+		this.quitQueue = {
 			'case' : 'quit_ranking',
-			'user' : {
-				'u_id' : User.u_id,
-				'unique_token' : User.unique_token
-			},
 			'data' : {}
-		});
+		};
 
 		//发送答案
 		this.itemSelect = {
 			'case' : 'item_select',
-			'user' : {
-				'u_id' : User.u_id,
-				'unique_token' : User.unique_token
-			},
 			'data' : {
-				'item' : ''
+				'item' : '',
+				'current_num': 0
 			}
 		};
 	};
@@ -925,32 +945,38 @@
 
 	//连接关闭
 	WsServicer.prototype.close = function(e) {
-		console.log('WebSocket connection close');
+		WsServicer.closePage();
 
+		console.log('WebSocket connection close');
 		Message.show('warning', '网络异常，正在为您重新连接，请检查您的网络是否异常', 20000);
 	};
 
 	//连接错误
 	WsServicer.prototype.error = function(e) {
+		WsServicer.closePage();
+
 		console.log('WebSocket connection fail');
 		Message.show('warning', '服务器出现异常，请稍后再试', 99999999);
 	};
 
 	//发送消息
 	WsServicer.prototype.send = function(data) {
+		data = JSON.stringify(data);
 		if (this.ws.readyState != 1){
 			console.log('current execute resend', data);
 			this.connection();
 
 			setTimeout(function() {
-				Message.show('success', '已成功重新连接服务器', 1000);
-				WsServicer.ws.send(data);
+				if (WsServicer.ws.readyState == 1) {
+					Message.show('success', '已成功重新连接服务器', 1000);
+					WsServicer.ws.send(data);
+				}
 			}, 500)
 		} else {
 			console.log('current execute send', data);
 			this.ws.send(data);
 		}
-	}
+	};
 
 	//发送心跳包
 	WsServicer.prototype.heartbeat = function(time) {
@@ -958,13 +984,13 @@
 		time = !time ? 10000 : time;
 
 		setTimeout(function() {
-			var heartbeat = JSON.stringify({
+			var heartbeat = {
 				'case' : 'heartbeat'
-			});
+			};
 			self.send(heartbeat);
 			self.heartbeat(time);
 		}, time)
-	}
+	};
 
 	//发送失败
 	WsServicer.prototype.sendFail = function(data) {
@@ -990,7 +1016,18 @@
 				}, 500);
 			}
 		}, 500);
-	}
+	};
+
+	WsServicer.prototype.closePage = function() {
+		if (PK.status == 1) {
+			PK.status = 0;
+			PK.close();
+		}
+
+		if (Ranking.status == 1) {
+			Ranking.quit();
+		}
+	};
 	//------------------------------------------------------------------连接Websocket-----end----------------------------
 
 	var Base = new Base();

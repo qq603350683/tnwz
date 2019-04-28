@@ -157,12 +157,14 @@ class Tnwz extends Command
         dump('server:message opcode is ' . $request->opcode);
 
         if (!$data || !is_array($data)) {
+            dump($data);
             $resp = Response::json('我不知道你在传什么东西~', -1);
             $this->push($request->fd, $resp);
             return;
         }
 
-        $data['case'] = $data['case'] ?? '';
+        $case = $data['case'] ?? '';
+        $data = $data['data'] ?? [];
 
         $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $request->fd]);
         if (!$u_id) {
@@ -172,7 +174,7 @@ class Tnwz extends Command
             return;
         }
 
-        switch ($data['case']) {
+        switch ($case) {
             case 'heartbeat':
                 //心跳包
                 break;
@@ -207,7 +209,97 @@ class Tnwz extends Command
                 $res = Ranking::quit($u_id);
                 dump('u_id: ' . $u_id . ' 退出排位排队' . ($res == true ? '成功' : '失败'));
                 break;
+            case 'item_select':
+                if (!isset($data['item'])) {
+                    $resp = Response::json('您没有选择答案噢~', -1);
+                    $this->push($request->fd, $resp);
+                    return;
+                }
 
+                if (!in_array($data['item'], ['a', 'b', 'c', 'd'])) {
+                    $resp = Response::json('请选择在合理范围内的选项~', -1);
+                    $this->push($request->fd, $resp);
+                    return;
+                }
+
+                $fd = $request->fd;
+
+                //获取u_id
+                $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $fd]);
+                if (!$u_id) {
+                    $resp = Response::json('您的登录出现了一点错误，请重新链接~', -1);
+                    $this->push($request->fd, $resp);
+                    $this->ws->close($request->fd);
+                    return;
+                }
+
+                //房号id
+                $room_id = Redis::command('hget', [REDIS_KEYS['rooms'], $u_id]);
+                if (!$room_id) {
+                    $resp = Response::json('您木有在PK噢~', -1);
+                    $this->push($request->fd, $resp);
+                    return;
+                }
+
+                //房号详情
+                $room = Redis::command('hgetall', [$room_id]);
+                if (!$room) {
+                    $resp = Response::json('您木有在PK噢~~', -1);
+                    $this->push($request->fd, $resp);
+                    return;
+                }
+
+                //回答题目顺序不正确
+                if ($room['current_topic_id'] != $data['current_num']) {
+                    $resp = Response::json('当前题目进度为第' . $room['current_topic_id'] + 1 . '题', -1);
+                    $this->push($request->fd, $resp);
+                    return;
+                }
+
+                //双方都超时回答处理，解散当前PK
+                $time_difference = time() - $room['last_answer_time'];
+                if ($time_difference > 21) {
+                    Redis::pipeline(function($pipe) use ($room_id, $room) {
+                        $pipe->del($room_id);
+                        $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
+                    });
+
+                    $resp = Response::json('当前题目进度异常', -4008);
+                    $this->push($room['left_fd'], $resp);
+
+                    $resp = Response::json('当前题目进度异常', -4008);
+                    $this->push($room['right_fd'], $resp);
+                    return;
+                }
+
+                $is_answer_true = $data['item'] == $room['answer_' . $data['current_num']] ? 1 : 0;
+
+                //0 - 回答错误 1 - 回答正确
+                Redis::pipeline(function($pipe) use ($u_id, $is_answer_true, $room) {
+                    if ($is_answer_true == 1) {
+                        if ($room['left_u_id'] == $u_id) {
+                            $pipe->hincrby(REDIS_KEYS['rooms'], 'left_score', 1);
+                        } else {
+                            $pipe->hincrby(REDIS_KEYS['rooms'], 'right_score', 1);
+                        }
+                    } else {
+                        if ($room['left_u_id'] == $u_id) {
+                            $pipe->hincrby(REDIS_KEYS['rooms'], 'right_score', 1);
+                        } else {
+                            $pipe->hincrby(REDIS_KEYS['rooms'], 'left_score', 1);
+                        }
+                    }
+
+                    
+                    
+                });
+
+
+                dump($u_id, $room_id, $room);
+
+
+
+                break;
             default:
                 $resp = Response::json('事件类型？...', -1);
                 $this->push($request->fd, $resp);
@@ -261,8 +353,8 @@ class Tnwz extends Command
 
                 //删除房间信息
                 Redis::pipeline(function($pipe) use ($room_id, $room) {
-                    $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
                     $pipe->del($room_id);
+                    $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
                 });
             }
         }
@@ -289,13 +381,16 @@ class Tnwz extends Command
                     $left_u_id = $u_ids[0];
                     $right_u_id = $u_ids[1];
 
-                    $fds = Redis::pipeline(function($pipe) use ($left_u_id, $right_u_id) {
-                        $pipe->hget(REDIS_KEYS['fds'], 'fd_' . $left_u_id);
-                        $pipe->hget(REDIS_KEYS['fds'], 'fd_' . $right_u_id);
+                    list($left_fd, $right_fd) = Redis::pipeline(function($pipe) use ($left_u_id, $right_u_id) {
+                        $pipe->hget(REDIS_KEYS['u_ids'], 'u_id_' . $left_u_id);
+                        $pipe->hget(REDIS_KEYS['u_ids'], 'u_id_' . $right_u_id);
                     });
 
-                    if (empty($fds) || count($fds) != 2) {
+                    // dump($fds, $left_u_id, $right_u_id);
+                    if (!($left_fd) || !$right_fd) {
                         Ranking::joins($u_ids);
+                        dump('这里未完成~');
+                        return;
                     }
 
                     //生成房间信息
@@ -306,12 +401,14 @@ class Tnwz extends Command
                     } while($flags);
 
                     $topics = Topics::random(10);
-                    Redis::pipeline(function($pipe) use ($room_id, $left_u_id, $right_u_id, $topics) {
+                    Redis::pipeline(function($pipe) use ($room_id, $left_u_id, $left_fd, $right_u_id, $right_fd, $topics) {
+                        $time = time();
+
                         //插入房间信息
                         $pipe->hset(REDIS_KEYS['rooms'], $left_u_id, $room_id, $right_u_id, $room_id);
 
                         $count = count($topics['questions']);
-                        $params = [$room_id, 'left_u_id', $left_u_id, 'right_u_id', $right_u_id, 'start_time', time(), 'current_topic_id', 0, 'last_topic_id', $count - 1];
+                        $params = [$room_id, 'left_u_id', $left_u_id, 'left_fd', $left_fd, 'left_score', 0, 'right_fd', $right_fd, 'right_u_id', $right_u_id, 'right_score', 0, 'start_time', $time, 'last_answer_time', $time, 'current_topic_id', 0, 'last_topic_id', $count - 1];
 
                         for ($i=0; $i < $count; $i++) {
                             $params[] = 'question_' . $i;
@@ -324,12 +421,12 @@ class Tnwz extends Command
                     });
 
                     $user = Users::info($left_u_id);
-                    $resp = Response::json('匹配到对手啦~', 201, ['user' => $user, 'topics' => $topics['topics']]);
-                    $this->push($fds[1], $resp);
+                    $resp = Response::json('匹配到对手啦~', 201, ['user' => $user, 'is_room_creator' => 1, 'topics' => $topics['topics']]);
+                    $this->push($right_fd, $resp);
 
                     $user = Users::info($right_u_id);
-                    $resp = Response::json('匹配到对手啦~', 201, ['user' => $user, 'topics' => $topics['topics']]);
-                    $this->push($fds[0], $resp);
+                    $resp = Response::json('匹配到对手啦~', 201, ['user' => $user, 'is_room_creator' => 0, 'topics' => $topics['topics']]);
+                    $this->push($left_fd, $resp);
                 });
                 break;
             case 1:
