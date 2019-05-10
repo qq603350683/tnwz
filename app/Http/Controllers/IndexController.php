@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Input;
 // use App\Http\Controllers\Controller;
 
 use DB;
+use Excel;
 
 use App\Http\Models\{
 	Response,
@@ -17,7 +18,7 @@ class IndexController extends Controller
 	public function index()
 	{
 		die;
-		$list = DB::table('topic_repositories')
+		$list = DB::table('splide_topic_repositories')
 			->select('question', 'cate_id', 'cate_name', 'a', 'b', 'c', 'd', 'answer', 'explanation', 'question_id')
 			->where('cate_id', '>', 0)
 			->get()
@@ -73,12 +74,64 @@ class IndexController extends Controller
 					break;
 			}
 			$list[$key]['explanation'] = str_replace('、', '', $value['explanation']);
-			$list[$key]['create_time'] = $_SERVER['REQUEST_TIME'];
+			// $list[$key]['create_time'] = $_SERVER['REQUEST_TIME'];
 			unset($list[$key]['question_id']);
 		}
 		// dd($list);
 
-		echo DB::table('topics_selects')->insert($list);
+		echo DB::table('topics_repositories')->insert($list);
+
+	}
+
+
+	//导出excel
+	public function excel()
+	{
+		$data = DB::table('topics_repositories')->get()->toArray();
+		$data = array_map('get_object_vars', $data);
+
+		return Excel::create('数据导出', function($excel) use ($data) {
+            $excel->sheet('数据导出', function($sheet) use ($data)
+            {
+                $sheet->cell('A1', function($cell) {
+                	$cell->setValue('ID');
+                });
+                $sheet->cell('B1', function($cell) {
+                	$cell->setValue('题目');
+                });
+                $sheet->cell('C1', function($cell) {
+                	$cell->setValue('题目类型');
+                });
+                $sheet->cell('D1', function($cell) {
+                	$cell->setValue('a'); 
+                });
+                $sheet->cell('E1', function($cell) {
+                	$cell->setValue('b'); 
+                });
+                $sheet->cell('F1', function($cell) {
+                	$cell->setValue('c'); 
+                });
+                $sheet->cell('G1', function($cell) {
+                	$cell->setValue('d'); 
+                });
+                $sheet->cell('H1', function($cell) {
+                	$cell->setValue('question'); 
+                });
+                if (!empty($data)) {
+                    foreach ($data as $key => $value) {
+                        $i = $key+2;
+                        $sheet->cell('A'.$i, $value['tr_id']);
+                        $sheet->cell('B'.$i, $value['question']);
+                        $sheet->cell('C'.$i, $value['cate_name']);
+                        $sheet->cell('D'.$i, $value['a']);
+                        $sheet->cell('E'.$i, $value['b']);
+                        $sheet->cell('F'.$i, $value['c']);
+                        $sheet->cell('G'.$i, $value['d']);
+                        $sheet->cell('H'.$i, $value['answer']);
+                    }
+                }
+            });
+        })->download('xls');
 
 	}
 

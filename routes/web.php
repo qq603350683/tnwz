@@ -14,7 +14,9 @@
 Route::get('/', function () {
     return view('welcome');
 });
+
 Route::get('/index', 'IndexController@index');
+Route::get('/excel', 'IndexController@excel');
 
 Route::get('/users/{u_id}', 'UsersController@info');
 

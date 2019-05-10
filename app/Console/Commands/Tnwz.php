@@ -258,7 +258,7 @@ class Tnwz extends Command
 
                 //双方都超时回答处理，解散当前PK
                 $time_difference = time() - $room['last_answer_time'];
-                if ($time_difference > 21) {
+                if ($time_difference > 1) {
                     Redis::pipeline(function($pipe) use ($room_id, $room) {
                         $pipe->del($room_id);
                         $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
@@ -272,26 +272,10 @@ class Tnwz extends Command
                     return;
                 }
 
-                $is_answer_true = $data['item'] == $room['answer_' . $data['current_num']] ? 1 : 0;
+                $is_answer_true = $data['item'] == $room['answer_' . $data['current_num']] ? true : false;
 
-                //0 - 回答错误 1 - 回答正确
                 Redis::pipeline(function($pipe) use ($u_id, $is_answer_true, $room) {
-                    if ($is_answer_true == 1) {
-                        if ($room['left_u_id'] == $u_id) {
-                            $pipe->hincrby(REDIS_KEYS['rooms'], 'left_score', 1);
-                        } else {
-                            $pipe->hincrby(REDIS_KEYS['rooms'], 'right_score', 1);
-                        }
-                    } else {
-                        if ($room['left_u_id'] == $u_id) {
-                            $pipe->hincrby(REDIS_KEYS['rooms'], 'right_score', 1);
-                        } else {
-                            $pipe->hincrby(REDIS_KEYS['rooms'], 'left_score', 1);
-                        }
-                    }
 
-                    
-                    
                 });
 
 
@@ -408,7 +392,7 @@ class Tnwz extends Command
                         $pipe->hset(REDIS_KEYS['rooms'], $left_u_id, $room_id, $right_u_id, $room_id);
 
                         $count = count($topics['questions']);
-                        $params = [$room_id, 'left_u_id', $left_u_id, 'left_fd', $left_fd, 'left_score', 0, 'right_fd', $right_fd, 'right_u_id', $right_u_id, 'right_score', 0, 'start_time', $time, 'last_answer_time', $time, 'current_topic_id', 0, 'last_topic_id', $count - 1];
+                        $params = [$room_id, 'left_u_id', $left_u_id, 'left_fd', $left_fd, 'left_answer', '', 'right_fd', $right_fd, 'right_u_id', $right_u_id, 'right_answer', '', 'start_time', $time, 'last_answer_time', $time, 'current_topic_id', 0, 'last_topic_id', $count - 1];
 
                         for ($i=0; $i < $count; $i++) {
                             $params[] = 'question_' . $i;
@@ -421,11 +405,11 @@ class Tnwz extends Command
                     });
 
                     $user = Users::info($left_u_id);
-                    $resp = Response::json('匹配到对手啦~', 201, ['user' => $user, 'is_room_creator' => 1, 'topics' => $topics['topics']]);
+                    $resp = Response::json('匹配到对手啦~', 201, ['user' => $user, 'is_room_creator' => 0, 'topics' => $topics['topics']]);
                     $this->push($right_fd, $resp);
 
                     $user = Users::info($right_u_id);
-                    $resp = Response::json('匹配到对手啦~', 201, ['user' => $user, 'is_room_creator' => 0, 'topics' => $topics['topics']]);
+                    $resp = Response::json('匹配到对手啦~', 201, ['user' => $user, 'is_room_creator' => 1, 'topics' => $topics['topics']]);
                     $this->push($left_fd, $resp);
                 });
                 break;
