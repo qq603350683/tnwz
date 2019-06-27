@@ -77,11 +77,11 @@ class Tnwz extends Command
         }
         Redis::command('del', $hdel);
 
-        $this->ws->on('open', [$this, 'onOpen']);
-        $this->ws->on('message', [$this, 'onMessage']);
-        $this->ws->on('close', [$this, 'onClose']);
-        $this->ws->on('task', [$this, 'onTask']);
-        $this->ws->on('finish', [$this, 'onFinish']);
+        $this->ws->on('open',        [$this, 'onOpen']);
+        $this->ws->on('message',     [$this, 'onMessage']);
+        $this->ws->on('close',       [$this, 'onClose']);
+        $this->ws->on('task',        [$this, 'onTask']);
+        $this->ws->on('finish',      [$this, 'onFinish']);
         $this->ws->on('WorkerStart', [$this, 'onWorkerStart']);
         $this->ws->start();
     }
@@ -202,7 +202,7 @@ class Tnwz extends Command
                     return;
                 }
 
-                dump('u_id: ' . $u_id . ' 加入排位排队失败成功');
+                dump('u_id: ' . $u_id . ' 加入排位排队成功');
                 break;
             case 'quit_ranking':
                 //退出PK排队队列
@@ -385,23 +385,36 @@ class Tnwz extends Command
                     } while($flags);
 
                     $topics = Topics::random(10);
-                    Redis::pipeline(function($pipe) use ($room_id, $left_u_id, $left_fd, $right_u_id, $right_fd, $topics) {
+                    $res = Redis::pipeline(function($pipe) use ($room_id, $left_u_id, $left_fd, $right_u_id, $right_fd, $topics) {
                         $time = time();
-
                         //插入房间信息
-                        $pipe->hset(REDIS_KEYS['rooms'], $left_u_id, $room_id, $right_u_id, $room_id);
 
+                        $pipe->hset(REDIS_KEYS['rooms'], $left_u_id, $room_id);
+                        $pipe->hset(REDIS_KEYS['rooms'], $right_u_id, $room_id);
+
+                        //$room_id, 
                         $count = count($topics['questions']);
-                        $params = [$room_id, 'left_u_id', $left_u_id, 'left_fd', $left_fd, 'left_answer', '', 'right_fd', $right_fd, 'right_u_id', $right_u_id, 'right_answer', '', 'start_time', $time, 'last_answer_time', $time, 'current_topic_id', 0, 'last_topic_id', $count - 1];
+                        $params = [
+                            'left_u_id'        => $left_u_id, 
+                            'left_fd'          => $left_fd, 
+                            'left_answer'      => '',
+                            'right_fd'         => $right_fd, 
+                            'right_u_id'       => $right_u_id, 
+                            'right_answer'     => '',
+                            'start_time'       => $time, 
+                            'last_answer_time' => $time, 
+                            'current_topic_id' => 0, 
+                            'last_topic_id'    => $count - 1
+                        ];
 
                         for ($i=0; $i < $count; $i++) {
-                            $params[] = 'question_' . $i;
-                            $params[] = $topics['questions']['question_' . $i];
-                            $params[] = 'answer_' . $i;
-                            $params[] = $topics['answers']['answer_' . $i];
+                            $params['question_' . $i] = $topics['questions']['question_' . $i];
+                            $params['answer_' . $i]   = $topics['answers']['answer_' . $i];
                         }
 
-                        call_user_func_array([$pipe, 'hset'], $params);
+                        foreach ($params as $key => $value) {
+                            $pipe->hset($room_id, $key, $value);
+                        }
                     });
 
                     $user = Users::info($left_u_id);
