@@ -875,8 +875,8 @@
 
 	//------------------------------------------------------------------连接Websocket-----start----------------------------
 	var WsServicer = window.WsServicer = function() {
-		// this.host = 'ws://192.168.26.129';
-		this.host = 'ws://192.168.83.133';
+		this.host = 'ws://192.168.26.129';
+		// this.host = 'ws://192.168.83.133';
 		this.prot = '9501';
 		
 	};
@@ -971,7 +971,7 @@
 					Message.show('success', '已成功重新连接服务器', 1000);
 					WsServicer.ws.send(data);
 				}
-			}, 500)
+			}, 500);
 		} else {
 			console.log('current execute send', data);
 			this.ws.send(data);
@@ -1151,7 +1151,7 @@
     		'message' : '匹配到对手啦~',
     		'code' : 201
     	};
-    	// WsServicer.connection();
+    	WsServicer.connection();
     	Base.response(ds);
     }
     // setTimeout(function() {

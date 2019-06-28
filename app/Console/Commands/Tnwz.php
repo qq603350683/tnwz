@@ -80,7 +80,7 @@ class Tnwz extends Command
         // Redis::command('del', $hdel);
 
         $this->ws->on('open', [$this, 'onOpen']);
-        $this->ws->on('message', [$this, 'onMessage']);
+        $this->ws->on('message',  [$this, 'onMessage']);
         $this->ws->on('close', [$this, 'onClose']);
         $this->ws->on('task', [$this, 'onTask']);
         $this->ws->on('finish', [$this, 'onFinish']);
@@ -440,21 +440,7 @@ class Tnwz extends Command
                     $topics = Topics::random(3);
                     Redis::pipeline(function($pipe) use ($room_id, $left_u_id, $left_fd, $right_u_id, $right_fd, $topics) {
                         $time = time();
-
                         //插入房间信息
-                        $pipe->hset(REDIS_KEYS['rooms'], $left_u_id, $room_id, $right_u_id, $room_id);
-
-                        $count = count($topics['questions']);
-                        $params = [$room_id, 'left_u_id', $left_u_id, 'left_fd', $left_fd, 'left_answer', '', 'right_fd', $right_fd, 'right_u_id', $right_u_id, 'right_answer', '', 'start_time', $time, 'last_answer_time', $time, 'current_topic_id', 0, 'last_topic_id', $count - 1];
-
-                        for ($i=0; $i < $count; $i++) {
-                            $params[] = 'question_' . $i;
-                            $params[] = $topics['questions']['question_' . $i];
-                            $params[] = 'answer_' . $i;
-                            $params[] = $topics['answers']['answer_' . $i];
-                        }
-
-                        call_user_func_array([$pipe, 'hset'], $params);
                     });
 
                     $user = Users::info($left_u_id);
