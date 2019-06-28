@@ -33,6 +33,7 @@ class Tnwz extends Command
 
     protected $ws;
     protected $prefix = 'tnwz_';
+    protected $answer_countdown = 3;
 
     /**
      * Create a new command instance.
@@ -73,9 +74,10 @@ class Tnwz extends Command
 
         //清空Redis
         foreach (REDIS_KEYS as $key => $value) {
-            $hdel[] = $value;
+            // $hdel[] = $value;
+            Redis::del($value);
         }
-        Redis::command('del', $hdel);
+        // Redis::command('del', $hdel);
 
         $this->ws->on('open', [$this, 'onOpen']);
         $this->ws->on('message', [$this, 'onMessage']);
@@ -202,7 +204,7 @@ class Tnwz extends Command
                     return;
                 }
 
-                dump('u_id: ' . $u_id . ' 加入排位排队失败成功');
+                dump('u_id: ' . $u_id . ' 加入排位排队成功');
                 break;
             case 'quit_ranking':
                 //退出PK排队队列
@@ -251,14 +253,15 @@ class Tnwz extends Command
 
                 //回答题目顺序不正确
                 if ($room['current_topic_id'] != $data['current_num']) {
-                    $resp = Response::json('当前题目进度为第' . $room['current_topic_id'] + 1 . '题', -1);
+                    $resp = Response::json('当前题目进度为第' . ($room['current_topic_id'] + 1) . '题', -1);
                     $this->push($request->fd, $resp);
                     return;
                 }
 
                 //双方都超时回答处理，解散当前PK
                 $time_difference = time() - $room['last_answer_time'];
-                if ($time_difference > 1) {
+                dump($time_difference);
+                if ($time_difference - $this->answer_countdown > 3) {
                     Redis::pipeline(function($pipe) use ($room_id, $room) {
                         $pipe->del($room_id);
                         $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
@@ -274,8 +277,58 @@ class Tnwz extends Command
 
                 $is_answer_true = $data['item'] == $room['answer_' . $data['current_num']] ? true : false;
 
-                Redis::pipeline(function($pipe) use ($u_id, $is_answer_true, $room) {
+                Redis::pipeline(function($pipe) use ($u_id, $is_answer_true, $room_id, $room) {
+                    $time = time();
+                    $pipe->hset($room_id, 'current_topic_id', $room['current_topic_id'] + 1);
+                    $pipe->hset($room_id, 'last_answer_time', $time);
 
+                    if ($u_id == $room['left_u_id'] && $is_answer_true == true) {
+                        $pipe->hset($room_id, 'left_answer', $room['left_answer'] . '1');
+                        $pipe->hset($room_id, 'right_answer', $room['right_answer'] . '0');
+
+                        $resp = Response::json('回答正确', 203);
+                        $this->push($room['left_fd'], $resp);
+
+                        $resp = Response::json('对方回答正确', 204);
+                        $this->push($room['right_fd'], $resp);
+                    } else if ($u_id == $room['left_u_id'] && $is_answer_true == false) {
+                        $pipe->hset($room_id, 'left_answer', $room['left_answer'] . '0');
+                        $pipe->hset($room_id, 'right_answer', $room['right_answer'] . '1');
+
+                        $resp = Response::json('回答错误', 205);
+                        $this->push($room['left_fd'], $resp);
+
+                        $resp = Response::json('对方回答错误', 206);
+                        $this->push($room['right_fd'], $resp);
+                    } else if ($u_id == $room['right_u_id'] && $is_answer_true == true) {
+                        $pipe->hset($room_id, 'left_answer', $room['left_answer'] . '0');
+                        $pipe->hset($room_id, 'right_answer', $room['right_answer'] . '1');
+
+                        $resp = Response::json('对方回答正确', 204);
+                        $this->push($room['left_fd'], $resp);
+
+                        $resp = Response::json('回答正确', 203);
+                        $this->push($room['right_fd'], $resp);
+                    } else if ($u_id == $room['right_u_id'] && $is_answer_true == false) {
+                        $pipe->hset($room_id, 'left_answer', $room['left_answer'] . '1');
+                        $pipe->hset($room_id, 'right_answer', $room['right_answer'] . '0');
+
+                        $resp = Response::json('对方回答错误', 206);
+                        $this->push($room['left_fd'], $resp);
+
+                        $resp = Response::json('回答错误', 205);
+                        $this->push($room['right_fd'], $resp);
+                    } else {
+                        $pipe->del($room_id);
+                        $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
+
+                        $resp = Response::json('还有这种情况？？？', -4009);
+                        $this->push($room['left_fd'], $resp);
+
+                        $resp = Response::json('还有这种情况？？？', -4009);
+                        $this->push($room['right_fd'], $resp);
+                        return;
+                    }
                 });
 
 
@@ -384,7 +437,7 @@ class Tnwz extends Command
                         $flags = Redis::exists($room_id);
                     } while($flags);
 
-                    $topics = Topics::random(10);
+                    $topics = Topics::random(3);
                     Redis::pipeline(function($pipe) use ($room_id, $left_u_id, $left_fd, $right_u_id, $right_fd, $topics) {
                         $time = time();
 
