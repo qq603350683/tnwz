@@ -33,7 +33,7 @@ class Tnwz extends Command
 
     protected $ws;
     protected $prefix = 'tnwz_';
-    protected $answer_countdown = 3;
+    protected $answer_countdown = 10;
 
     /**
      * Create a new command instance.
@@ -80,7 +80,7 @@ class Tnwz extends Command
         // Redis::command('del', $hdel);
 
         $this->ws->on('open', [$this, 'onOpen']);
-        $this->ws->on('message',  [$this, 'onMessage']);
+        $this->ws->on('message', [$this, 'onMessage']);
         $this->ws->on('close', [$this, 'onClose']);
         $this->ws->on('task', [$this, 'onTask']);
         $this->ws->on('finish', [$this, 'onFinish']);
@@ -260,8 +260,25 @@ class Tnwz extends Command
 
                 //双方都超时回答处理，解散当前PK
                 $time_difference = time() - $room['last_answer_time'];
-                dump($time_difference);
-                if ($time_difference - $this->answer_countdown > 3) {
+
+                //判断时间是否正确
+                $time_is_right = false;
+                if ($room['current_topic_id'] == 0) {
+                    //这里减去3秒是前段动画时间
+                    if ($time_difference - 3 < $this->answer_countdown)
+                        $time_is_right = true;
+
+                    dump('答题话费时间---' . $time_difference - 3);
+                } else {
+                    if ($time_difference < $this->answer_countdown)
+                        $time_is_right = true;
+
+                    dump('答题话费时间---' . $time_difference);
+                }
+
+                
+
+                if ($time_is_right == false) {
                     Redis::pipeline(function($pipe) use ($room_id, $room) {
                         $pipe->del($room_id);
                         $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
@@ -440,7 +457,21 @@ class Tnwz extends Command
                     $topics = Topics::random(3);
                     Redis::pipeline(function($pipe) use ($room_id, $left_u_id, $left_fd, $right_u_id, $right_fd, $topics) {
                         $time = time();
+
                         //插入房间信息
+                        $pipe->hset(REDIS_KEYS['rooms'], $left_u_id, $room_id, $right_u_id, $room_id);
+
+                        $count = count($topics['questions']);
+                        $params = [$room_id, 'left_u_id', $left_u_id, 'left_fd', $left_fd, 'left_answer', '', 'right_fd', $right_fd, 'right_u_id', $right_u_id, 'right_answer', '', 'start_time', $time, 'last_answer_time', $time, 'current_topic_id', 0, 'last_topic_id', $count - 1];
+
+                        for ($i=0; $i < $count; $i++) {
+                            $params[] = 'question_' . $i;
+                            $params[] = $topics['questions']['question_' . $i];
+                            $params[] = 'answer_' . $i;
+                            $params[] = $topics['answers']['answer_' . $i];
+                        }
+
+                        call_user_func_array([$pipe, 'hset'], $params);
                     });
 
                     $user = Users::info($left_u_id);

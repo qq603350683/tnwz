@@ -226,6 +226,21 @@
 				PK.close();
 				PK.status = 0;
 				break;
+			case 203:
+				//回答正确
+				clearTimeout(PK.countdown_id);
+				PK.countdown_id = '';
+				PK.countdown(0);
+				break;
+			case 204:
+				//对方回答正确
+				break;
+			case 205:
+				//回答错误
+				break;
+			case 206:
+				//对方回答错误
+				break;
 			case -1:
 				Message.show('warning', data.message);
 				return false;
@@ -266,6 +281,11 @@
 				break;
 			case -4008:
 				Message.show('fail', '游戏数据异常，将退出本次游戏');
+				PK.close();
+				return false;
+				break;
+			case -4009:
+				Message.show('fail', '游戏数据异常，将退出本次游戏。');
 				PK.close();
 				return false;
 				break;
@@ -848,7 +868,13 @@
 				return false;
 		}
 
-		WsServicer.send(data);
+		var ds = {
+    		'data' : {},
+    		'message' : '203~~~~~',
+    		'code' : 203
+    	};
+    	Base.response(ds);
+		// WsServicer.send(data);
 	};
 
 
