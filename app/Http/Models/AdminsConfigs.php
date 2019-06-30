@@ -11,7 +11,7 @@ class AdminsConfigs extends Model
 	 * 获取备注详情
 	 * 
 	 */
-	public static function getConfig()
+	public static function getConfig($key = '')
 	{
 		$configs = AdminsConfigs::get()
 			->toArray();
@@ -21,7 +21,7 @@ class AdminsConfigs extends Model
 
 		$configs = array_combine(array_column($configs, 'key'), array_column($configs, 'value'));
 
-		return $configs;
+		return $key == '' ? $configs : $configs[$key];
 	}
 
 

@@ -352,8 +352,73 @@ class Tnwz extends Command
                     }
                 });
 
+                $room = Redis::command('hgetall', [$room_id]);
 
-                dump($u_id, $room_id, $room);
+                // $is
+
+                if (($room['current_topic_id'] - 1) == $room['last_topic_id']) {
+                    //全部题目回答完毕
+
+                    $left_score  = array_sum(str_split($room['left_answer']));
+                    $right_score = array_sum(str_split($room['right_answer']));
+
+                    $res = $left_score <=> $right_score;
+
+                    $config = AdminsConfigs::getConfig();
+
+                    if ($res == 1) {
+                        //left 胜利
+                        $victory_u_id = $room['left_u_id'];
+                        $result = [
+                            $room['left_u_id']  => [
+                                'gold' => $config['victory_gold'],
+                                'exp'  => $config['victory_exp']
+                            ],
+                            $room['right_u_id'] => [
+                                'gold' => $config['defeat_gold'],
+                                'exp'  => $config['defeat_exp']
+                            ]
+                        ];
+                    } else if ($res == 0) {
+                        //平手
+                        $victory_u_id = 0;
+                        $result = [
+                            $room['left_u_id']  => [
+                                'gold' => $config['flat_gold'],
+                                'exp'  => $config['flat_exp']
+                            ],
+                            $room['right_u_id'] => [
+                                'gold' => $config['flat_gold'],
+                                'exp'  => $config['flat_exp']
+                            ]
+                        ];
+                    } else if ($res == -1) {
+                        //right 胜利
+                        $victory_u_id = $room['right_u_id'];
+                        $result = [
+                            $room['left_u_id']  => [
+                                'gold' => $config['defeat_gold'],
+                                'exp'  => $config['defeat_exp']
+                            ],
+                            $room['right_u_id'] => [
+                                'gold' => $config['victory_gold'],
+                                'exp'  => $config['victory_exp']
+                            ]
+                        ];
+                    } else {
+                        dump('我也不知道是谁胜利啦~');
+                    }
+
+                    Users::calcResult($victory_u_id, $result);
+
+                    //删除房间信息
+                    Redis::pipeline(function($pipe) use ($room_id, $room) {
+                        $pipe->del($room_id);
+                        $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
+                    });
+                }
+
+                dump($room);
 
 
 
@@ -458,7 +523,7 @@ class Tnwz extends Command
                         $flags = Redis::exists($room_id);
                     } while($flags);
 
-                    $topics = Topics::random(3);
+                    $topics = Topics::random(11);
                     Redis::pipeline(function($pipe) use ($room_id, $left_u_id, $left_fd, $right_u_id, $right_fd, $topics) {
                         $time = time();
 
