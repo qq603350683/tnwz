@@ -268,7 +268,7 @@ class Tnwz extends Command
                     if ($time_difference - 3 < $this->answer_countdown)
                         $time_is_right = true;
 
-                    dump('答题话费时间---' . $time_difference - 3);
+                    dump('答题话费时间---' . ($time_difference - 3));
                 } else {
                     if ($time_difference < $this->answer_countdown)
                         $time_is_right = true;
@@ -292,48 +292,52 @@ class Tnwz extends Command
                     return;
                 }
 
-                $is_answer_true = $data['item'] == $room['answer_' . $data['current_num']] ? true : false;
+                $true_answer = $room['answer_' . $data['current_num']];
+                $player_select = $data['item'];
+                $is_answer_true = $player_select == $true_answer ? true : false;
 
-                Redis::pipeline(function($pipe) use ($u_id, $is_answer_true, $room_id, $room) {
+                Redis::pipeline(function($pipe) use ($u_id, $is_answer_true, $true_answer, $player_select, $room_id, $room) {
                     $time = time();
                     $pipe->hset($room_id, 'current_topic_id', $room['current_topic_id'] + 1);
                     $pipe->hset($room_id, 'last_answer_time', $time);
+
+                    $res = ['true_answer' => $true_answer, 'player_select' => $player_select];
 
                     if ($u_id == $room['left_u_id'] && $is_answer_true == true) {
                         $pipe->hset($room_id, 'left_answer', $room['left_answer'] . '1');
                         $pipe->hset($room_id, 'right_answer', $room['right_answer'] . '0');
 
-                        $resp = Response::json('回答正确', 203);
+                        $resp = Response::json('回答正确', 203, $res);
                         $this->push($room['left_fd'], $resp);
 
-                        $resp = Response::json('对方回答正确', 204);
+                        $resp = Response::json('对方回答正确', 204, $res);
                         $this->push($room['right_fd'], $resp);
                     } else if ($u_id == $room['left_u_id'] && $is_answer_true == false) {
                         $pipe->hset($room_id, 'left_answer', $room['left_answer'] . '0');
                         $pipe->hset($room_id, 'right_answer', $room['right_answer'] . '1');
 
-                        $resp = Response::json('回答错误', 205);
+                        $resp = Response::json('回答错误', 205, $res);
                         $this->push($room['left_fd'], $resp);
 
-                        $resp = Response::json('对方回答错误', 206);
+                        $resp = Response::json('对方回答错误', 206, $res);
                         $this->push($room['right_fd'], $resp);
                     } else if ($u_id == $room['right_u_id'] && $is_answer_true == true) {
                         $pipe->hset($room_id, 'left_answer', $room['left_answer'] . '0');
                         $pipe->hset($room_id, 'right_answer', $room['right_answer'] . '1');
 
-                        $resp = Response::json('对方回答正确', 204);
+                        $resp = Response::json('对方回答正确', 204, $res);
                         $this->push($room['left_fd'], $resp);
 
-                        $resp = Response::json('回答正确', 203);
+                        $resp = Response::json('回答正确', 203, $res);
                         $this->push($room['right_fd'], $resp);
                     } else if ($u_id == $room['right_u_id'] && $is_answer_true == false) {
                         $pipe->hset($room_id, 'left_answer', $room['left_answer'] . '1');
                         $pipe->hset($room_id, 'right_answer', $room['right_answer'] . '0');
 
-                        $resp = Response::json('对方回答错误', 206);
+                        $resp = Response::json('对方回答错误', 206, $res);
                         $this->push($room['left_fd'], $resp);
 
-                        $resp = Response::json('回答错误', 205);
+                        $resp = Response::json('回答错误', 205, $res);
                         $this->push($room['right_fd'], $resp);
                     } else {
                         $pipe->del($room_id);

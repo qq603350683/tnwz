@@ -86,12 +86,11 @@
 		ranking_main = document.getElementById('ranking-main'),
 		pk = document.getElementById('pk'),
 		pk_info = document.getElementById('pk-info'),
+		pk_main = document.getElementById('pk-main'),
 		message = document.getElementById('message'),
 		message_info = document.getElementById('message-info'),
 		pk_process_left = document.getElementById('pk-process-left'),
-		pk_process_right = document.getElementById('pk-process-right'),
-		pk_process_left_num = document.getElementById('pk-process-left-num'),
-		pk_process_right_num = document.getElementById('pk-process-right-num');
+		pk_process_right = document.getElementById('pk-process-right');
 
 	var ranking_main_max = 100; //排行榜最多获取100名
 	var is_active = 0;       //0待定状态 1活动进行中 -4002活动尚未开始   -4003活动已经结束
@@ -237,19 +236,19 @@
 				break;
 			case 203:
 				//回答正确
-				// clearTimeout(PK.countdown_id);
-				// PK.countdown_id = '';
-				// PK.countdown(0);
-				PK.iAmRight();
+				PK.iAmRight(data.data.true_answer, data.data.player_select, PK.next);
 				break;
 			case 204:
 				//对方回答正确
+				PK.opponentRight(data.data.true_answer, data.data.player_select, PK.next);
 				break;
 			case 205:
 				//回答错误
+				PK.iAmWrong(data.data.true_answer, data.data.player_select, PK.next);
 				break;
 			case 206:
 				//对方回答错误
+				PK.opponentWrong(data.data.true_answer, data.data.player_select, PK.next);
 				break;
 			case -1:
 				Message.show('warning', data.message);
@@ -690,8 +689,10 @@
 		PK.topicTotalNum = data.topics.length;
 		PK.currentTopicNum = 0;
 		PK.countdown_id = '';
-		PK.process_left = 0;
-		PK.process_rifht = 0;
+		PK.left_process = 0;
+		PK.right_process = 0;
+		PK.left_score = 0;
+		PK.right_score = 0;
 
 		var opponents = data.user;
 		var html = '<div class="pk_0 animated bounceInLeft"> \
@@ -711,24 +712,30 @@
 		pk_info.innerHTML = html;
 
 		PK.headerHtml = '<div id="pk-header"> \
-			            <div id="pk-user-left"> \
-			                <img src="' + User.avatar + '"> \
-			            </div> \
-			            <div id="pk-time"> \
-			                <div id="pk-time-num">' + countdown + '</div> \
-			            </div> \
-			            <div id="pk-user-right"> \
-			                <img src="' + opponents.wx_avatar + '"> \
-			            </div> \
-			        </div>';
+				            <div id="pk-user-left"> \
+				                <img src="' + User.avatar + '"> \
+				            </div> \
+				            <div id="pk-time"> \
+				                <div id="pk-time-num">' + countdown + '</div> \
+				            </div> \
+				            <div id="pk-user-right"> \
+				                <img src="' + opponents.wx_avatar + '"> \
+				            </div> \
+				        </div> \
+				        <div id="pk-process-left"> \
+				            <div id="pk-process-left-num"></div> \
+				        </div> \
+				        <div id="pk-process-right"> \
+				            <div id="pk-process-right-num"></div> \
+				        </div>';
 
 		Ranking.moveTop(function() {
 			setTimeout(function() {
 				Base.css(pk_info, {'display' : 'block'});
 				Base.css(ranking_loading, {'top' : '100%'}, function() {
 					Ranking.reset();
-					pk.innerHTML = self.headerHtml + PK.topicHtml(PK.topic, PK.currentTopicNum);
-					Base.css(document.getElementById('pk-main'), {'width' : clientCssWidth + 'px'});
+					pk.innerHTML = PK.headerHtml + PK.topicHtml(PK.topic, PK.currentTopicNum);
+					Base.css(pk_main, {'width' : clientCssWidth + 'px'});
 					self.itemBindClick(PK.topic[0]['a'], PK.topic[0]['b'], PK.topic[0]['c'], PK.topic[0]['d']);
 
 					setTimeout(function() {
@@ -754,7 +761,12 @@
 					return '';
 				}
 
-				pk.innerHTML = PK.headerHtml + PK.topicHtml(PK.topic, PK.currentTopicNum);
+				// pk.innerHTML = PK.headerHtml + PK.topicHtml(PK.topic, PK.currentTopicNum);
+				pk.removeChild(document.getElementById('pk-main'));
+				pk.removeChild(document.getElementById('pk-footer'));
+
+				pk.innerHTML = pk.innerHTML + PK.topicHtml(PK.topic, PK.currentTopicNum);
+
 				Base.css(document.getElementById('pk-main'), {'width' : clientCssWidth + 'px'});
 				_countdown = countdown;
 
@@ -779,9 +791,6 @@
 			            {{topic}}<span id="question-num">{{i}}</span> \
 			        </div> \
 			        <div id="pk-footer"> \
-			            <div id="pk-process-left"> \
-			                <div id="pk-process-left-num"></div> \
-			            </div> \
 			            <div id="pk-item-main">';
 
 		if (topic[i].a) {
@@ -825,9 +834,6 @@
 		}
 
 		html +=	'</div> \
-		            <div id="pk-process-right"> \
-		                <div id="pk-process-right-num"></div> \
-		            </div> \
 		        </div>';
 
 		html = html.replace(/{{i}}/, i + 1);
@@ -885,13 +891,16 @@
 				return false;
 		}
 
-		var ds = {
-    		'data' : {},
-    		'message' : '203~~~~~',
-    		'code' : 203
-    	};
-    	Base.response(ds);
-		// WsServicer.send(data);
+		// var ds = {
+  //   		'data' : {
+  //   			'true_answer' : 'a'
+  //   		},
+  //   		'message' : '206~~~~~',
+  //   		'code' : 206
+  //   	};
+  //   	Base.response(ds);
+  		console.log(data);
+		WsServicer.send(data);
 	};
 
 
@@ -915,35 +924,121 @@
 
 
 	//我回答正确
-	PK.prototype.iAmRight = function() {
-		var item = document.getElementById('item_' + PK.itemSelect);
+	PK.prototype.iAmRight = function(true_answer, player_select, callback) {
+		var item = document.getElementById('item_' + player_select);
+		item.setAttribute('class', 'answer-true-left');
+
+		PK.left_score += 1;
+
+    	var percent =  PK.left_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
+    	PK.processUpdate('left', percent);
+
+    	if (callback && typeof(callback) === "function")
+			callback();
+	};
+
+
+	//对手回答正确
+	PK.prototype.opponentRight = function(true_answer, player_select, callback) {
+		var item = document.getElementById('item_' + true_answer);
+		item.setAttribute('class', 'answer-true-right');
+
+		PK.right_score += 1;
+
+    	var percent =  PK.right_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
+    	PK.processUpdate('right', percent);
+
+    	if (callback && typeof(callback) === "function")
+			callback();
+	};
+
+
+	//我回答错误
+	PK.prototype.iAmWrong = function(true_answer, player_select, callback) {
+		var item = document.getElementById('item_' + player_select);
+		item.setAttribute('class', 'answer-false-left');
+
+		var item = document.getElementById('item_' + true_answer);
 		item.setAttribute('class', 'answer-true');
 
+		PK.right_score += 1;
+
+    	var percent =  PK.right_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
+    	PK.processUpdate('right', percent);
+
+		if (callback && typeof(callback) === "function")
+			callback();
+	};
+
+
+	//对手回答错误
+	PK.prototype.opponentWrong = function(true_answer, player_select, callback) {
+		var item = document.getElementById('item_' + player_select);
+		item.setAttribute('class', 'answer-false-right');
+
+		var item = document.getElementById('item_' + true_answer);
+		item.setAttribute('class', 'answer-true');
+
+		PK.left_score += 1;
+
+    	var percent =  PK.left_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
+    	console.log(percent, PK.left_process, percent);
+    	PK.processUpdate('left', percent);
+
+		if (callback && typeof(callback) === "function")
+			callback();
+	};
+
+
+	//下一道题目
+	PK.prototype.next = function() {
+		clearTimeout(PK.countdown_id);
+		PK.countdown_id = '';
+		setTimeout(function() {
+			document.getElementById("pk-time-num").innerText = countdown;
+			PK.countdown(0);
+		}, 500);
+	};
+
+
+	//
+	PK.prototype.ending = function(direction) {
+		clearTimeout(PK.countdown_id);
+		PK.countdown_id = '';
+
+		console.log(direction + '获得本场游戏胜利');
 	};
 
 	//更新进度条
 	PK.prototype.processUpdate = function(direction, percent) {
 		switch (direction) {
 			case 'left':
-				dom = pk_process_left_num;
+				dom = document.getElementById('pk-process-left-num');
 				p_dom = pk_process_left;
-				_percent = PK.process_left;
-				PK.process_left++;
+				_percent = PK.left_process;
+				var diff = percent - _percent >= 2 ? 2 : 1;
+				PK.left_process += diff;
 				break;
 			case 'right':
-				dom = pk_process_right_num;
+				dom = document.getElementById('pk-process-right-num');
 				p_dom = pk_process_right;
-				_percent = PK.process_right;
-				PK.process_right++;
+				_percent = PK.right_process;
+				var diff = percent - _percent >= 2 ? 2 : 1;
+				PK.right_process += diff;
 				break;
 		}
 
 		if (_percent < percent) {
-			_percent++;
+			_percent += diff;
 			Base.css(dom, {'height' : _percent + '%'});
-			setTimeout(function() {
-				PK.processUpdate(direction, percent);
-			}, 20);
+
+			if (_percent == 100) {
+				PK.ending(direction);
+			} else {
+				setTimeout(function() {
+					PK.processUpdate(direction, percent);
+				}, 20);
+			}
 		}
 	};
 
@@ -1282,13 +1377,13 @@
   //   	PK.topicTotalNum = data.topics.length;
 		// PK.currentTopicNum = 0;
 		// PK.countdown_id = '';
-		// PK.process_left = 0;
-		// PK.process_rifht = 0;
-    	PK.process_left += 1;
-    	var per =  PK.process_left / parseInt((PK.topicTotalNum / 2) + 1) * 100;
+		// PK.left_process = 0;
+		// PK.right_process = 0;
+    	// PK.left_score += 1;
+    	// var per =  PK.left_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
     	// console.log(per);
     	// Base.css(direction_id, {'height' : per + '%'});
-    	PK.processUpdate('left', per);
+    	// PK.processUpdate('left', per);
     };
 
     // setTimeout(function() {

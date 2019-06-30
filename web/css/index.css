@@ -857,11 +857,10 @@ body {
 	align-items:center;
 }
 #pk-main {
-	width:100%;
+	width:100vw;
 	margin:0 auto;
 	height:4.8rem;
 	table-layout:fixed;
-
 	font-size:0.72rem;
 	letter-spacing:1px;
 	display:table-cell;
@@ -879,6 +878,7 @@ body {
 	line-height:1.2rem;
 	font-size:0.72rem;
 	letter-spacing:1px;
+	width:100vw;
 	/*display:block;*/
 
 }
@@ -893,12 +893,13 @@ body {
 }
 #pk-process-left {
 	width:0.96rem;
-	height:100%;
+	height:calc(100% - 14.4rem);
 	background-color:#1B83B6;
 	border-radius:0.96rem;
 	border:1px solid #fff;
 	position:relative;
-	left:0px;
+	left:10px;
+	top:4.8rem;
 	display:inline-block;
 	float:left;
 }
@@ -913,14 +914,15 @@ body {
 }
 #pk-process-right {
 	width:0.96rem;
-	height:100%;
+	height:calc(100% - 14.4rem);
 	background-color:#1B83B6;
 	border:1px solid #fff;
 	border-radius:0.96rem;
 	position:relative;
-	right:0px;
+	right:10px;
+	top:4.8rem;
 	display:inline-block;
-	float:left;
+	float:right;
 }
 #pk-process-right-num {
 	position:absolute;
@@ -934,8 +936,9 @@ body {
 #pk-item-main {
 	width:calc(100% - 2.592rem);
 	height:100%;
-	display:inline-block;
-	float:left;
+	/*display:inline-block;*/
+	/*float:left;*/
+	margin:0 auto;
 }
 #item_a , #item_b , #item_c , #item_d {
 	width:80%;
@@ -952,12 +955,32 @@ body {
 #pk-item-main .answer-true {
 	background-color:#28EDB5;
 	color:#fff;
+}
+#pk-item-main .answer-true-left {
+	background-color:#28EDB5;
+	color:#fff;
 	background-image:url('../images/true.png');
 	background-repeat:no-repeat;
 	background-size:15px 15px;
 	background-position:10px center;
 }
-#pk-item-main .answer-false {
+#pk-item-main .answer-true-right {
+	background-color:#28EDB5;
+	color:#fff;
+	background-image:url('../images/true.png');
+	background-repeat:no-repeat;
+	background-size:15px 15px;
+	background-position:calc(100% - 10px) center;
+}
+#pk-item-main .answer-false-left {
+	background-color:#F7746A;
+	color:#fff;
+	background-image:url('../images/false.png');
+	background-repeat:no-repeat;
+	background-size:15px 15px;
+	background-position:10px center;
+}
+#pk-item-main .answer-false-right {
 	background-color:#F7746A;
 	color:#fff;
 	background-image:url('../images/false.png');
