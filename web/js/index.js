@@ -87,7 +87,11 @@
 		pk = document.getElementById('pk'),
 		pk_info = document.getElementById('pk-info'),
 		message = document.getElementById('message'),
-		message_info = document.getElementById('message-info');
+		message_info = document.getElementById('message-info'),
+		pk_process_left = document.getElementById('pk-process-left'),
+		pk_process_right = document.getElementById('pk-process-right'),
+		pk_process_left_num = document.getElementById('pk-process-left-num'),
+		pk_process_right_num = document.getElementById('pk-process-right-num');
 
 	var ranking_main_max = 100; //排行榜最多获取100名
 	var is_active = 0;       //0待定状态 1活动进行中 -4002活动尚未开始   -4003活动已经结束
@@ -177,6 +181,11 @@
 			callback();
 	};
 
+	//获取css属性
+	Base.prototype.getCss = function(dom, attribute) {
+        return dom.currentStyle ? dom.currentStyle[attribute] : window.getComputedStyle(dom, null)[attribute];
+	};
+
 	//ajax
 	Base.prototype.ajax = function(obj, callback) {
 		var keys = new Array(),
@@ -228,9 +237,10 @@
 				break;
 			case 203:
 				//回答正确
-				clearTimeout(PK.countdown_id);
-				PK.countdown_id = '';
-				PK.countdown(0);
+				// clearTimeout(PK.countdown_id);
+				// PK.countdown_id = '';
+				// PK.countdown(0);
+				PK.iAmRight();
 				break;
 			case 204:
 				//对方回答正确
@@ -670,6 +680,7 @@
 		self.topicTotalNum = 0;
 		self.topic = {};
 		self.itemStatus = 0;
+		self.itemSelect = '';
 	};
 
 	//PK开始加载动画
@@ -679,6 +690,8 @@
 		PK.topicTotalNum = data.topics.length;
 		PK.currentTopicNum = 0;
 		PK.countdown_id = '';
+		PK.process_left = 0;
+		PK.process_rifht = 0;
 
 		var opponents = data.user;
 		var html = '<div class="pk_0 animated bounceInLeft"> \
@@ -853,15 +866,19 @@
 		data.data.current_num = PK.currentTopicNum;
 		switch (this.id) {
 			case 'item_a': 
+				PK.itemSelect = 'a';
 				data.data.item = 'a';
 				break;
 			case 'item_b': 
+				PK.itemSelect = 'b';
 				data.data.item = 'b';
 				break;
 			case 'item_c': 
+				PK.itemSelect = 'c';
 				data.data.item = 'c';
 				break;
 			case 'item_d': 
+				PK.itemSelect = 'd';
 				data.data.item = 'd';
 				break;
 			default:
@@ -894,6 +911,40 @@
 
 		pk_info.innerHTML = '';
 		pk.innerHTML = '';
+	};
+
+
+	//我回答正确
+	PK.prototype.iAmRight = function() {
+		var item = document.getElementById('item_' + PK.itemSelect);
+		item.setAttribute('class', 'answer-true');
+
+	};
+
+	//更新进度条
+	PK.prototype.processUpdate = function(direction, percent) {
+		switch (direction) {
+			case 'left':
+				dom = pk_process_left_num;
+				p_dom = pk_process_left;
+				_percent = PK.process_left;
+				PK.process_left++;
+				break;
+			case 'right':
+				dom = pk_process_right_num;
+				p_dom = pk_process_right;
+				_percent = PK.process_right;
+				PK.process_right++;
+				break;
+		}
+
+		if (_percent < percent) {
+			_percent++;
+			Base.css(dom, {'height' : _percent + '%'});
+			setTimeout(function() {
+				PK.processUpdate(direction, percent);
+			}, 20);
+		}
 	};
 
 	//------------------------------------------------------------------PK-----end----------------------------
@@ -1144,6 +1195,7 @@
 	    			'u_id' : 2,
 	    			'wx_avatar' : 'http://192.168.26.129/answer/web/images/avatar.png'
     			},
+    			'total_question' : 10,
     			'topics' : [
     				{
     					'ts_id' : 1,
@@ -1180,6 +1232,65 @@
     	WsServicer.connection();
     	Base.response(ds);
     }
+
+    document.getElementById('item_d').onclick = function() {
+    	var ds = {
+    		'data' : {
+    			'user' : {
+    				'a_id' : 1,
+	    			'city' : '广州市',
+	    			'lv' : 20,
+	    			'nickname' : '邻里圈牛逼',
+	    			'u_id' : 2,
+	    			'wx_avatar' : 'http://192.168.26.129/answer/web/images/avatar.png'
+    			},
+    			'total_question' : 10,
+    			'topics' : [
+    				{
+    					'ts_id' : 1,
+    					'question' : '大煮干丝”是哪个菜系的代表菜之一',
+    					'img' : '',
+    					'a' : '四川菜系',
+    					'b' : '山东菜系',
+    					'c' : '广东菜系',
+    					'd' : '淮扬菜系',
+    				},
+    				{
+    					'ts_id' : 2,
+    					'question' : '红茶属于_____茶',
+    					'img' : '',
+    					'a' : '半发酵',
+    					'b' : '发酵',
+    					'c' : '不发酵',
+    					'd' : '微发酵',
+    				},
+    				{
+    					'ts_id' : 1,
+    					'question' : '吃冰淇淋不解渴主要是因为它',
+    					'img' : '',
+    					'a' : '含蛋白质',
+    					'b' : '含脂肪',
+    					'c' : '含糖',
+    					'd' : '',
+    				}
+    			]
+    		},
+    		'message' : '匹配到对手啦~',
+    		'code' : 201
+    	};
+    	Base.response(ds);
+  //   	PK.topicTotalNum = data.topics.length;
+		// PK.currentTopicNum = 0;
+		// PK.countdown_id = '';
+		// PK.process_left = 0;
+		// PK.process_rifht = 0;
+    	PK.process_left += 1;
+    	var per =  PK.process_left / parseInt((PK.topicTotalNum / 2) + 1) * 100;
+    	// console.log(per);
+    	// Base.css(direction_id, {'height' : per + '%'});
+    	PK.processUpdate('left', per);
+    };
+
     // setTimeout(function() {
     // 	Base.css(loading, {'display' : 'none'});
     // 	Base.css(index, {'display' : 'block'});

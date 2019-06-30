@@ -907,7 +907,7 @@ body {
 	bottom:0px;
 	left:0px;
 	width:100%;
-	height:30%;
+	/*height:30%;*/
 	background-color:#FFBC53;
 	border-radius:0.96rem;
 }
@@ -927,7 +927,7 @@ body {
 	bottom:0px;
 	right:0px;
 	width:100%;
-	height:30%;
+	/*height:30%;*/
 	background-color:#FFBC53;
 	border-radius:0.96rem;
 }
@@ -952,10 +952,18 @@ body {
 #pk-item-main .answer-true {
 	background-color:#28EDB5;
 	color:#fff;
+	background-image:url('../images/true.png');
+	background-repeat:no-repeat;
+	background-size:15px 15px;
+	background-position:10px center;
 }
 #pk-item-main .answer-false {
 	background-color:#F7746A;
 	color:#fff;
+	background-image:url('../images/false.png');
+	background-repeat:no-repeat;
+	background-size:15px 15px;
+	background-position:calc(100% - 10px) center;
 }
 #item_a .my-answer , #item_b .my-answer , #item_c .my-answer , #item_d .my-answer {
 	position:relative;
