@@ -7,6 +7,14 @@ use App\Exceptions\ApiException;
 
 class Users extends Model 
 {
+	public $timestamps = false;
+
+	// const CREATED_AT = 'create_time';
+	// const UPDATED_AT = 'update_time';
+
+	// protected $dateFormat = 'U';
+	protected $primaryKey = 'u_id';
+
 	public static function info($u_id, $select = '*'):array
 	{
 		$info = Users::where('u_id', $u_id)
@@ -50,7 +58,7 @@ class Users extends Model
 	 * @param 
 	 * @return 
 	 */
-	public static function calcResult($victory_u_id, $datas):boolean
+	public static function calcResult($victory_u_id, $datas):bool
 	{
 		foreach ($datas as $key => $value) {
 			$info = self::info($key);
@@ -89,5 +97,7 @@ class Users extends Model
 				
 			dump($key . '计算结果' . $res);
 		}
+
+		return true;
 	}
 }

@@ -245,6 +245,7 @@ class Tnwz extends Command
 
                 //房号详情
                 $room = Redis::command('hgetall', [$room_id]);
+                dump('当前题目ID是: ' . $room['current_topic_id']);
                 if (!$room) {
                     $resp = Response::json('您木有在PK噢~~', -1);
                     $this->push($request->fd, $resp);
@@ -252,8 +253,9 @@ class Tnwz extends Command
                 }
 
                 //回答题目顺序不正确
+                dump('~~~~~~~~~~~~~~~~~~~~', $room['current_topic_id'], $data['current_num'], $room['last_topic_id']);
                 if ($room['current_topic_id'] != $data['current_num']) {
-                    $resp = Response::json('当前题目进度为第' . ($room['current_topic_id'] + 1) . '题', -1);
+                    $resp = Response::json('当前题目进度为第' . ($room['current_topic_id']) . '题', -1);
                     $this->push($request->fd, $resp);
                     return;
                 }
@@ -263,17 +265,17 @@ class Tnwz extends Command
 
                 //判断时间是否正确
                 $time_is_right = false;
-                if ($room['current_topic_id'] == 0) {
+                if ($room['current_topic_id'] == 1) {
                     //这里减去3秒是前段动画时间
                     if ($time_difference - 3 < $this->answer_countdown)
                         $time_is_right = true;
 
-                    dump('答题话费时间---' . ($time_difference - 3));
+                    dump('答题花费时间---' . ($time_difference - 3));
                 } else {
                     if ($time_difference < $this->answer_countdown)
                         $time_is_right = true;
 
-                    dump('答题话费时间---' . $time_difference);
+                    dump('答题花费时间---' . $time_difference);
                 }
 
                 
@@ -354,16 +356,26 @@ class Tnwz extends Command
 
                 $room = Redis::command('hgetall', [$room_id]);
 
-                // $is
+                $left_score  = array_sum(str_split($room['left_answer']));
+                $right_score = array_sum(str_split($room['right_answer']));
 
-                if (($room['current_topic_id'] - 1) == $room['last_topic_id']) {
+                $is_left_victory = $left_score / $room['last_topic_id'];
+                $is_right_victory = $right_score / $room['last_topic_id'];
+                dump('左右双方得分比: ' . $is_left_victory . '|' . $is_right_victory);
+
+                if ((($room['current_topic_id'] - 1) == $room['last_topic_id']) || $is_left_victory > 0.5 || $is_right_victory > 0.5) {
+                    if ($is_left_victory > 0.5) {
+                        dump('左边胜利 left success', $is_left_victory);
+                    } else if ($is_right_victory > 0.5) {
+                        dump('右边胜利 left success', $is_right_victory);
+                    } else {
+                        dump('平手 falt');
+                    }
+
                     //全部题目回答完毕
 
-                    $left_score  = array_sum(str_split($room['left_answer']));
-                    $right_score = array_sum(str_split($room['right_answer']));
-
                     $res = $left_score <=> $right_score;
-
+                    dump('比赛结果是:' . $res);
                     $config = AdminsConfigs::getConfig();
 
                     if ($res == 1) {
@@ -417,10 +429,6 @@ class Tnwz extends Command
                         $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
                     });
                 }
-
-                dump($room);
-
-
 
                 break;
             default:
@@ -523,7 +531,7 @@ class Tnwz extends Command
                         $flags = Redis::exists($room_id);
                     } while($flags);
 
-                    $topics = Topics::random(11);
+                    $topics = Topics::random(5);
                     Redis::pipeline(function($pipe) use ($room_id, $left_u_id, $left_fd, $right_u_id, $right_fd, $topics) {
                         $time = time();
 
@@ -531,12 +539,13 @@ class Tnwz extends Command
                         $pipe->hset(REDIS_KEYS['rooms'], $left_u_id, $room_id, $right_u_id, $room_id);
 
                         $count = count($topics['questions']);
-                        $params = [$room_id, 'left_u_id', $left_u_id, 'left_fd', $left_fd, 'left_answer', '', 'right_fd', $right_fd, 'right_u_id', $right_u_id, 'right_answer', '', 'start_time', $time, 'last_answer_time', $time, 'current_topic_id', 0, 'last_topic_id', $count - 1];
+                        $params = [$room_id, 'left_u_id', $left_u_id, 'left_fd', $left_fd, 'left_answer', '', 'right_fd', $right_fd, 'right_u_id', $right_u_id, 'right_answer', '', 'start_time', $time, 'last_answer_time', $time, 'current_topic_id', 1, 'last_topic_id', $count];
 
                         for ($i=0; $i < $count; $i++) {
-                            $params[] = 'question_' . $i;
+                            $_i = $i + 1;
+                            $params[] = 'question_' . $_i;
                             $params[] = $topics['questions']['question_' . $i];
-                            $params[] = 'answer_' . $i;
+                            $params[] = 'answer_' . $_i;
                             $params[] = $topics['answers']['answer_' . $i];
                         }
 

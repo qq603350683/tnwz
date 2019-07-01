@@ -869,7 +869,7 @@
 
 		data = WsServicer.itemSelect;
 
-		data.data.current_num = PK.currentTopicNum;
+		data.data.current_num = PK.currentTopicNum + 1;
 		switch (this.id) {
 			case 'item_a': 
 				PK.itemSelect = 'a';
@@ -955,6 +955,7 @@
 
 	//我回答错误
 	PK.prototype.iAmWrong = function(true_answer, player_select, callback) {
+		console.log('i am wrong' + true_answer + player_select);
 		var item = document.getElementById('item_' + player_select);
 		item.setAttribute('class', 'answer-false-left');
 
