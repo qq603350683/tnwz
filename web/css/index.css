@@ -59,6 +59,9 @@ body {
 	background:url('../images/background_1.png') no-repeat;
 	background-size:100%;
 }
+.clear {
+	clear:both;
+}
 /**
  * loading
  */
@@ -1041,6 +1044,187 @@ body {
 #item_c {
 	margin-bottom:calc(20% / 3);
 }
+
+#pk-ending {
+	display:none;
+	width:100%;
+	height:100%;
+	position:absolute;
+	top:0;
+	left:0;
+	z-index:99999;
+	/*background:red;*/
+	background:url('../images/background_1.png') no-repeat;
+	background-size:100%;
+}
+#left-user {
+	margin-top:15%;
+	float:left;
+	width:50%;
+	height:100px;
+}
+#left-user .bg_1 {
+	background:rgb(18,231,239);
+	width:90px;
+	height:70px;
+	border-radius:0 35px 35px 0;
+	text-align:right;
+}
+#left-user .bg_1 img {
+	width:60px;
+	text-align:right;
+	border-radius:60px;
+	border:3px solid #fff;
+	margin:2px;
+}
+#left-user .bg_2 {
+	background:rgb(18,231,239);
+	width:calc(100% - 1px);
+	height:100px;
+	border-radius:0 50px 50px 0;
+}
+#left-user .bg_2 .nickname {
+	width:120px;
+	text-align:center;
+	font-size:16px;
+	height:30px;
+	line-height:30px;
+	color:#fff;
+}
+#left-user .bg_2 .lv {
+	width:120px;
+	text-align:center;
+	font-size:16px;
+	height:30px;
+	line-height:30px;
+	color:#fff;
+}
+#left-user .bg_2 .true-num {
+	height:40px;
+	line-height:40px;
+	background-color:#fff;
+	width:70%;
+	border-radius:0 35px 35px 0; 
+	text-align:center;
+	font-size:15px;
+	color:rgb(66, 189, 249);
+	letter-spacing:2px;
+}
+
+#right-user {
+	margin-top:15%;
+	float:right;
+	width:50%;
+	height:100px;
+}
+#right-user .bg_1 {
+	background:rgb(255,128,189);
+	width:90px;
+	height:70px;
+	border-radius:35px 0 0 35px;
+	text-align:left;
+	float:right;
+}
+#right-user .bg_1 img {
+	width:60px;
+	text-align:left;
+	border-radius:60px;
+	border:3px solid #fff;
+	margin:2px;
+}
+#right-user .bg_2 {
+	background:rgb(255,128,189);
+	width:calc(100% - 1px);
+	height:100px;
+	border-radius:50px 0 0 50px;
+	float:right;
+}
+#right-user .bg_2 .nickname {
+	width:120px;
+	text-align:center;
+	font-size:16px;
+	height:30px;
+	line-height:30px;
+	color:#fff;
+	float:right;
+}
+#right-user .bg_2 .lv {
+	width:120px;
+	text-align:center;
+	font-size:16px;
+	height:30px;
+	line-height:30px;
+	color:#fff;
+	float:right;
+}
+#right-user .bg_2 .true-num {
+	height:40px;
+	line-height:40px;
+	background-color:#fff;
+	width:70%;
+	border-radius:35px 0 0 35px; 
+	text-align:center;
+	font-size:15px;
+	color:rgb(66, 189, 249);
+	letter-spacing:2px;
+	float:right;
+}
+
+#pk-ending-center {
+	background-color:rgb(140, 215, 252);
+	position:relative;
+	top:20%;
+	width:200px;
+	height:80px;
+	margin:0 auto;
+	/*box-shadow:0 0 10px 10px rgb(66, 189, 249) inset;*/
+}
+#pk-ending-center .box {
+	width:70px;
+	height:40px;
+	line-height:40px;
+	margin:0 auto;
+}
+#pk-ending-center .box div {
+	width:35px;
+	height:40px;
+	float:left;
+	display:flex;
+	justify-content:center;
+	align-items:center;
+}
+#pk-ending-center .box div img {
+	width:24px;
+}
+#get-gold, #get-exp {
+	font-size:16px;
+	color:#fff;
+}
+#pk-again {
+	position:relative;
+	top:30%;
+	width:200px;
+	margin:0 auto;
+	text-align:center;
+	background:#fff;
+	height:44px;
+	line-height:44px;
+	color:rgb(66, 189, 249);
+	font-size:18px;
+}
+#go-index {
+	position:relative;
+	top:32%;
+	width:200px;
+	margin:0 auto;
+	text-align:center;
+	background:#fff;
+	height:44px;
+	line-height:44px;
+	color:rgb(66, 189, 249);
+	font-size:18px;
+}
+
 
 /**
  * https://daneden.github.io/animate.css/
