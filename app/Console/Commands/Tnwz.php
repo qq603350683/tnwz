@@ -365,9 +365,9 @@ class Tnwz extends Command
 
                 if ((($room['current_topic_id'] - 1) == $room['last_topic_id']) || $is_left_victory > 0.5 || $is_right_victory > 0.5) {
                     if ($is_left_victory > 0.5) {
-                        dump('左边胜利 left success', $is_left_victory);
+                        dump('左边胜利 left success' . $is_left_victory . '|' . $room['left_u_id']);
                     } else if ($is_right_victory > 0.5) {
-                        dump('右边胜利 left success', $is_right_victory);
+                        dump('右边胜利 left success' . $is_right_victory . '|' . $room['right_u_id']);
                     } else {
                         dump('平手 falt');
                     }

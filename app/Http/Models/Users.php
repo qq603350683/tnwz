@@ -62,6 +62,7 @@ class Users extends Model
 	{
 		foreach ($datas as $key => $value) {
 			$info = self::info($key);
+			$update = [];
 
 			//金币增加
 			$update['gold'] = $info['gold'] + $value['gold'];
@@ -94,8 +95,8 @@ class Users extends Model
 
 			$res = Users::where('u_id', $key)
 				->update($update);
-				
-			dump($key . '计算结果' . $res);
+			
+			dump('用户ID: ' . $key . '比赛计算结果: ' . $res);
 		}
 
 		return true;

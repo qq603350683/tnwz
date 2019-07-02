@@ -488,7 +488,7 @@
 		this._gold = 0;
 		this.gold = user.gold;
 		this.unique_token = user.unique_token;
-		this.goldSum = parseInt(user.gold / 133);
+		this.goldSum = user.gold < 133 ? user.gold : parseInt(user.gold / 133);
 
 		//头像
 		avatar.getElementsByTagName('img')[0].setAttribute('src', this.avatar);
@@ -526,12 +526,19 @@
 	//金币动画
 	User.prototype.goldTimer = function() {
 		var self = this;
+		var time = 1;
+		if (self.gold - self._gold <= self.goldSum) {
+			self._gold++;
+			time = 20;
+		} else {
+			self._gold += self.goldSum;
+			time = 1;
+		}
 		setTimeout(function() {
-			self.gold - self._gold < self.goldSum ? self._gold++ : self._gold += self.goldSum;
 			user_gold.getElementsByTagName('span')[0].innerHTML = self._gold;
 			if (self._gold < self.gold)
 				self.goldTimer();
-		}, 1);
+		}, time);
 	};
 
 	//------------------------------------------------------------------用户类操作-----end----------------------------
@@ -932,6 +939,8 @@
 
     	var percent =  PK.left_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
     	PK.processUpdate('left', percent);
+    	if (percent == 100)
+    		return false;
 
     	if (callback && typeof(callback) === "function")
 			callback();
@@ -947,6 +956,8 @@
 
     	var percent =  PK.right_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
     	PK.processUpdate('right', percent);
+    	if (percent == 100)
+    		return false;
 
     	if (callback && typeof(callback) === "function")
 			callback();
@@ -955,7 +966,6 @@
 
 	//我回答错误
 	PK.prototype.iAmWrong = function(true_answer, player_select, callback) {
-		console.log('i am wrong' + true_answer + player_select);
 		var item = document.getElementById('item_' + player_select);
 		item.setAttribute('class', 'answer-false-left');
 
@@ -966,6 +976,8 @@
 
     	var percent =  PK.right_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
     	PK.processUpdate('right', percent);
+    	if (percent == 100)
+    		return false;
 
 		if (callback && typeof(callback) === "function")
 			callback();
@@ -983,8 +995,9 @@
 		PK.left_score += 1;
 
     	var percent =  PK.left_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
-    	console.log(percent, PK.left_process, percent);
     	PK.processUpdate('left', percent);
+    	if (percent == 100)
+    		return false;
 
 		if (callback && typeof(callback) === "function")
 			callback();
@@ -993,6 +1006,7 @@
 
 	//下一道题目
 	PK.prototype.next = function() {
+		console.log('doing next')
 		clearTimeout(PK.countdown_id);
 		PK.countdown_id = '';
 		setTimeout(function() {
@@ -1006,6 +1020,17 @@
 	PK.prototype.ending = function(direction) {
 		clearTimeout(PK.countdown_id);
 		PK.countdown_id = '';
+
+		switch (direction) {
+			case 'left':
+				Message.show('success', '恭喜您，获得本场游戏胜利');
+				break;
+			case 'right':
+				Message.show('fail', '很遗憾，本场游戏失败了~');
+				break;
+		}
+
+		PK.close();
 
 		console.log(direction + '获得本场游戏胜利');
 	};
@@ -1048,8 +1073,8 @@
 
 	//------------------------------------------------------------------连接Websocket-----start----------------------------
 	var WsServicer = window.WsServicer = function() {
-		this.host = 'ws://192.168.26.129';
-		// this.host = 'ws://192.168.83.133';
+		// this.host = 'ws://192.168.26.129';
+		this.host = 'ws://192.168.83.133';
 		this.prot = '9501';
 		
 	};
