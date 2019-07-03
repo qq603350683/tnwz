@@ -90,7 +90,18 @@
 		message = document.getElementById('message'),
 		message_info = document.getElementById('message-info'),
 		pk_process_left = document.getElementById('pk-process-left'),
-		pk_process_right = document.getElementById('pk-process-right');
+		pk_process_right = document.getElementById('pk-process-right'),
+		pk_ending = document.getElementById('pk-ending'),
+		left_avatar = document.getElementById('left-avatar'),
+		right_avatar = document.getElementById('right-avatar'),
+		left_nickname = document.getElementById('left-nickname'),
+		right_nickname = document.getElementById('right-nickname'),
+		left_lv = document.getElementById('left-lv'),
+		right_lv = document.getElementById('right-lv'),
+		left_true_num = document.getElementById('left-true-num'),
+		right_true_num = document.getElementById('right-true-num'),
+		get_gold = document.getElementById('get-gold'),
+		get_exp = document.getElementById('get-exp');
 
 	var ranking_main_max = 100; //排行榜最多获取100名
 	var is_active = 0;       //0待定状态 1活动进行中 -4002活动尚未开始   -4003活动已经结束
@@ -249,6 +260,12 @@
 			case 206:
 				//对方回答错误
 				PK.opponentWrong(data.data.true_answer, data.data.player_select, PK.next);
+				break;
+			case 207:
+				//比赛结果显示
+				get_gold.innerHTML = '+' + data.data.gold;
+				get_exp.innerHTML = '+' + data.data.exp;
+				PK.endingShow();
 				break;
 			case -1:
 				Message.show('warning', data.message);
@@ -736,6 +753,12 @@
 				            <div id="pk-process-right-num"></div> \
 				        </div>';
 
+		left_avatar.setAttribute('src', User.avatar);
+		left_nickname.innerHTML = User.nickname;
+
+		right_avatar.setAttribute('src', opponents.wx_avatar);
+		right_nickname.innerHTML = opponents.nickname;
+
 		Ranking.moveTop(function() {
 			setTimeout(function() {
 				Base.css(pk_info, {'display' : 'block'});
@@ -1030,7 +1053,11 @@
 				break;
 		}
 
-		PK.close();
+		
+		Base.top(pk_ending, function() {
+			console.log('pk close');
+    		PK.close();
+    	});
 
 		console.log(direction + '获得本场游戏胜利');
 	};
@@ -1066,6 +1093,12 @@
 				}, 20);
 			}
 		}
+	};
+
+
+	//结果显示
+	PK.prototype.endingShow = function() {
+
 	};
 
 	//------------------------------------------------------------------PK-----end----------------------------

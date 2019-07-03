@@ -423,6 +423,12 @@ class Tnwz extends Command
 
                     Users::calcResult($victory_u_id, $result);
 
+                    $resp = Response::json('比赛结束获得奖励', 207, $result[$room['left_u_id']]);
+                    $this->push($room['left_fd'], $resp);
+
+                    $resp = Response::json('比赛结束获得奖励', 207, $result[$room['right_u_id']]);
+                    $this->push($room['right_fd'], $resp);
+
                     //删除房间信息
                     Redis::pipeline(function($pipe) use ($room_id, $room) {
                         $pipe->del($room_id);
