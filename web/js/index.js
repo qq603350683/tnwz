@@ -105,7 +105,7 @@
 
 	var ranking_main_max = 100; //排行榜最多获取100名
 	var is_active = 0;       //0待定状态 1活动进行中 -4002活动尚未开始   -4003活动已经结束
-	var countdown = 10;      //倒计时
+	var countdown = 3;      //倒计时
 
 	//------------------------------------------------------------------基础操作类-----start----------------------------
 	var Base = window.Base = function() {
@@ -262,6 +262,10 @@
 				PK.opponentWrong(data.data.true_answer, data.data.player_select, PK.next);
 				break;
 			case 207:
+				//回答超时
+				console.log('回答超时la ~');
+				break
+			case 208:
 				//比赛结果显示
 				get_gold.innerHTML = '+' + data.data.gold;
 				get_exp.innerHTML = '+' + data.data.exp;
@@ -783,6 +787,8 @@
 
 		PK.countdown_id = setTimeout(function() {
 			if (_countdown == 0) {
+				WsServicer.send(WsServicer.answerTimeout);
+
 				PK.currentTopicNum += 1;
 
 				if (PK.currentTopicNum == PK.topicTotalNum) {
@@ -1135,6 +1141,12 @@
 				'item' : '',
 				'current_num': 0
 			}
+		};
+
+		//回答超时
+		this.answerTimeout = {
+			'case' : 'timeout',
+			'data' : {}
 		};
 	};
 
