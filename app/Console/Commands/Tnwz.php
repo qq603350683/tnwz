@@ -380,14 +380,16 @@ class Tnwz extends Command
                 }
 
                 //房号id
-                $room_id = Redis::command('hget', [REDIS_KEYS['rooms'], $u_id]);
+                // $room_id = Redis::command('hget', [REDIS_KEYS['rooms'], $u_id]);
+                $room_id = Redis::hget(REDIS_KEYS['rooms'], $u_id);
+                dump($room_id, $u_id);
                 if (!$room_id) {
                     $resp = Response::json('您木有在PK噢~', -1);
                     $this->push($request->fd, $resp);
                     return;
                 }
 
-                dump('房间号 ' . $room_id);
+                dump('房间号 ', $room_id);
 
                 $lock_name = $this->prefix . $room_id . '_room_lock';
                 $room_lock = Redis::get($lock_name);
@@ -403,7 +405,7 @@ class Tnwz extends Command
                     $pipe->expire($lock_name, $this->answer_countdown - 2);
 
                 });
-                dump($res);
+                dump('redis 数据返回', $res);
 
                 //房号详情
                 // $room = Redis::command('hgetall', [$room_id]);
@@ -478,7 +480,7 @@ class Tnwz extends Command
         dump('close fd is ' . $fd);
 
         $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $fd]);
-        dump('del u_id is ' . $u_id);
+        dump('del u_id is ', $u_id);
         if ($u_id > 0) {
             $hdel = [
                 [
@@ -505,17 +507,20 @@ class Tnwz extends Command
             if ($room_id) {
                 $room = Redis::hgetall($room_id);
 
-                $to_u_id = $room['left_u_id'] == $u_id ? $room['right_u_id'] : $room['left_u_id'];
-                $to_fd_id = Redis::command('hget', [REDIS_KEYS['u_ids'], 'u_id_' . $to_u_id]);
+                if (is_array($room) && !empty($room)) {
+                    dump('del room', $room);
+                    $to_u_id = $room['left_u_id'] == $u_id ? $room['right_u_id'] : $room['left_u_id'];
+                    $to_fd_id = Redis::command('hget', [REDIS_KEYS['u_ids'], 'u_id_' . $to_u_id]);
 
-                $resp = Response::json('您的对手掉线或者跑掉啦~', 202);
-                $this->push($to_fd_id, $resp);
+                    $resp = Response::json('您的对手掉线或者跑掉啦~', 202);
+                    $this->push($to_fd_id, $resp);
 
-                //删除房间信息
-                Redis::pipeline(function($pipe) use ($room_id, $room) {
-                    $pipe->del($room_id);
-                    $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
-                });
+                    //删除房间信息
+                    Redis::pipeline(function($pipe) use ($room_id, $room) {
+                        $pipe->del($room_id);
+                        $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
+                    });
+                }
             }
         }
     }

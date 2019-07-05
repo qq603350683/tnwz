@@ -263,6 +263,7 @@
 				break;
 			case 207:
 				//回答超时
+				// if (User.)
 				console.log('回答超时la ~');
 				break
 			case 208:
@@ -787,7 +788,13 @@
 
 		PK.countdown_id = setTimeout(function() {
 			if (_countdown == 0) {
-				WsServicer.send(WsServicer.answerTimeout);
+				if (User.u_id == 1) {
+					WsServicer.send(WsServicer.answerTimeout);
+				} else {
+					setTimeout(function() {
+						WsServicer.send(WsServicer.answerTimeout);
+					}, 1000);
+				}
 
 				PK.currentTopicNum += 1;
 
