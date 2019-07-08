@@ -33,8 +33,11 @@ class Tnwz extends Command
 
 
     protected $ws;
+    protected $redis;
     protected $prefix = 'tnwz_';
     protected $answer_countdown = 3;
+
+
 
     /**
      * Create a new command instance.
@@ -43,6 +46,11 @@ class Tnwz extends Command
      */
     public function __construct()
     {
+        define('REDIS_CONFIG', [
+            'host' => '192.168.83.133',
+            'port' => 6379
+        ]);
+
         define('REDIS_KEYS', [
             'fds'     => $this->prefix . 'fd',      //u_id -> fd
             'u_ids'   => $this->prefix . 'u_id',    //fd -> u_id
@@ -73,9 +81,11 @@ class Tnwz extends Command
             'heartbeat_idle_time'      => 25,      //25秒内没收到任何信息链接强制关闭
         ]);
 
+
+        
+
         //清空Redis
         foreach (REDIS_KEYS as $key => $value) {
-            // $hdel[] = $value;
             Redis::del($value);
         }
         // Redis::command('del', $hdel);
@@ -98,6 +108,20 @@ class Tnwz extends Command
 
     public function onOpen($ws, $request) 
     {
+        // go(function() {
+        //     $redis = new \Swoole\Coroutine\Redis();
+        //     dump($redis);
+        //     $redis->connect('127.0.0.1', 6379);
+
+        //     $redis->setDefer();
+
+        //     $redis->set('key1', 'value1');
+        //     $redis->set('key2', 'value2');
+
+        //     $result1 = $redis->recv();
+        //     $result2 = $redis->recv();
+        // });
+
         dump('fd 接入 ' . $request->fd . ' 成功');
         $u_id         = intval($request->get['u_id'] ?? 0);
         $unique_token = $request->get['unique_token'] ?? '';
@@ -137,11 +161,18 @@ class Tnwz extends Command
                 'value' => $request->fd
             ]
         ];
-        Redis::pipeline(function($pipe) use ($hset) {
+
+        // go(function() use ($hset) {
+            $redis = new \Swoole\Coroutine\Redis();
+            $redis->connect(REDIS_CONFIG['host'], REDIS_CONFIG['port']);
+            $redis->setDefer();
+            dump($redis);
             foreach ($hset as $key => $value) {
-                $pipe->hset($value['key'], $value['field'], $value['value']);
-            }   
-        });
+                $redis->hset($value['key'], $value['field'], $value['value']);
+            }
+
+            $redis->recv();
+        // });
 
         $resp = [
             'fd'   => $request->fd,
@@ -168,6 +199,7 @@ class Tnwz extends Command
 
         $case = $data['case'] ?? '';
         $data = $data['data'] ?? [];
+        $fd = $request->fd;
 
         $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $request->fd]);
         if (!$u_id) {
@@ -176,6 +208,16 @@ class Tnwz extends Command
             $this->ws->close($request->fd);
             return;
         }
+
+        // $a = go(function() use ($fd) {
+        //     $redis = new \Swoole\Coroutine\Redis();
+        //     $redis->connect(REDIS_CONFIG['host'], REDIS_CONFIG['port']);
+
+        //     $redis->hget(REDIS_KEYS['fds'], 'fd_' . $fd);
+
+        //     $redis->recv();
+        // });
+        // dump($a);
 
         switch ($case) {
             case 'heartbeat':

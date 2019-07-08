@@ -15,14 +15,14 @@ use App\Http\Models\{
     Ranking
 };
 
-class Tnwz extends Command
+class Test extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'tnwz';
+    protected $signature = 'test';
 
     /**
      * The console command description.
@@ -33,7 +33,7 @@ class Tnwz extends Command
 
 
     protected $ws;
-    protected $prefix = '';
+    protected $prefix = 'test_';
     protected $answer_countdown = 3;
 
     /**
@@ -43,7 +43,7 @@ class Tnwz extends Command
      */
     public function __construct()
     {
-        define('REDIS_KEYS', [
+        define('REDIS_TEST_KEYS', [
             'test'     => $this->prefix . 'test', 
         ]);
         parent::__construct();
@@ -71,11 +71,11 @@ class Tnwz extends Command
         ]);
 
         //清空Redis
-        foreach (REDIS_KEYS as $key => $value) {
+        foreach (REDIS_TEST_KEYS as $key => $value) {
             Redis::del($value);
         }
 
-        Redis::hset(REDIS_KEYS['test'], [
+        Redis::hset(REDIS_TEST_KEYS['test'], [
             0 => 'a',
             1 => 'b',
             2 => 'c',
@@ -114,7 +114,8 @@ class Tnwz extends Command
 
     public function onMessage($ws, $request) 
     {
-
+        $mod = time() % 10;
+        dump('mod is ' . $mod);
     }
 
 
