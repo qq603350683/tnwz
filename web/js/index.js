@@ -278,16 +278,19 @@
 				break;
 			case -4001:
 				Message.show('warning', '系统出现了一些错误，请稍后再试');
+				WsServicer.doClose();
 				return false;
 				break;
 			case -4002:   //活动尚未开始
 				is_active = data.code;
 				Game.active(data.code);
+				WsServicer.doClose();
 				return false; 
 				break;
 			case -4003:   //活动已结束
 				is_active = data.code;
 				Game.active(data.code);
+				WsServicer.doClose();
 				return false;
 				break;
 			case -4004:
@@ -318,6 +321,10 @@
 			case -4009:
 				Message.show('fail', '游戏数据异常，将退出本次游戏。');
 				PK.close();
+				return false;
+			case -4099:
+				Message.show('fail', data.message);
+				WsServicer.doClose();
 				return false;
 				break;
 		}
@@ -788,13 +795,13 @@
 
 		PK.countdown_id = setTimeout(function() {
 			if (_countdown == 0) {
-				if (User.u_id == 1) {
+				// if (User.u_id == 1) {
 					WsServicer.send(WsServicer.answerTimeout);
-				} else {
-					setTimeout(function() {
-						WsServicer.send(WsServicer.answerTimeout);
-					}, 1000);
-				}
+				// } else {
+				// 	setTimeout(function() {
+				// 		WsServicer.send(WsServicer.answerTimeout);
+				// 	}, 1000);
+				// }
 
 				PK.currentTopicNum += 1;
 
@@ -1155,6 +1162,12 @@
 			'case' : 'timeout',
 			'data' : {}
 		};
+
+		//断开连接
+		this.doWsClose = {
+			'case' : 'close',
+			'data' : {}
+		};
 	};
 
 	//打开连接
@@ -1277,6 +1290,10 @@
 		if (Ranking.status == 1) {
 			Ranking.quit();
 		}
+	};
+
+	WsServicer.prototype.doClose = function() {
+		WsServicer.send(WsServicer.doWsClose);
 	};
 	//------------------------------------------------------------------连接Websocket-----end----------------------------
 

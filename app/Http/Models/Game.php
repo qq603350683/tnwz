@@ -3,6 +3,8 @@ namespace App\Http\Models;
 
 use App\Exceptions\ApiException;
 
+use Illuminate\Support\Facades\Redis;
+
 class Game
 {
 	/**
@@ -20,9 +22,9 @@ class Game
 
 
         $left_score  = array_count_values(str_split($room['left_answer']));
-        $left_score  = $left_score['Y'] ?? 0;
+        $left_score  = $left_score['T'] ?? 0;
         $right_score = array_count_values(str_split($room['right_answer']));
-        $right_score = $right_score['Y'] ?? 0;
+        $right_score = $right_score['T'] ?? 0;
 
         $is_left_victory = $left_score / $room['last_topic_id'];
         $is_right_victory = $right_score / $room['last_topic_id'];
@@ -87,12 +89,6 @@ class Game
             }
 
             Users::calcResult($victory_u_id, $result);
-
-            // $resp = Response::json('比赛结束获得奖励', 208, $result[$room['left_u_id']]);
-            // $this->push($room['left_fd'], $resp);
-
-            // $resp = Response::json('比赛结束获得奖励', 208, $result[$room['right_u_id']]);
-            // $this->push($room['right_fd'], $resp);
 
             //删除房间信息
             Redis::pipeline(function($pipe) use ($room_id, $room) {
