@@ -3,6 +3,7 @@ namespace App\Http\Models;
 
 class CoRedis 
 {
+	private static $commandCount = 0;
 	private static $instance = NULL;
 
 	private function __construct()
@@ -29,6 +30,9 @@ class CoRedis
        		self::$instance = $redis;
 		}
 
+		if (self::$instance->getDefer() == true)
+			self::$commandCount += 1;
+
 		return self::$instance; 
 	}
 
@@ -42,6 +46,12 @@ class CoRedis
 	public static function set($key, $value, $expire = 0)
 	{
 		return $expire > 0 ? self::getInstance()->set($key, $value, $expire) : self::getInstance()->set($key, $value);
+	}
+
+
+	public static function del($key)
+	{
+		return self::getInstance()->delete($key);
 	}
 
 
@@ -84,15 +94,10 @@ class CoRedis
 	public static function hgetall($key)
 	{
 		$all = self::getInstance()->hgetall($key);
-		if (is_null($all) || empty($all))
+		if (is_null($all) || empty($all) || !is_array($all))
 			return $all;
-
-		$count = count($all);
-        for ($i=0; $i < $count; $i += 2) { 
-            $all[$all[$i]] = $all[$i + 1];
-            unset($all[$i], $all[$i + 1]);
-        }
-        return $all;
+		// dump('hgetall: ' . $key, $all);
+		return self::format($all);
 	}
 
 
@@ -102,13 +107,32 @@ class CoRedis
 	}
 
 
-	/**
-	 * this
-	 *
-	 * @param 
-	 */
 	public static function pipeline($callback)
 	{
-		// return 
+		$CoRedis = self::getInstance();
+
+		$CoRedis->setDefer();
+
+		call_user_func($callback, $CoRedis);
+
+		for ($i=0; $i < self::$commandCount; $i++) {
+			$res[] = $CoRedis->recv();
+		}
+
+		self::$commandCount = 0;
+		$CoRedis->setDefer(false);
+
+		return $res;
+	}
+
+
+	public static function format($array)
+	{
+		$count = count($array);
+        for ($i=0; $i < $count; $i += 2) { 
+            $array[$array[$i]] = $array[$i + 1];
+            unset($array[$i], $array[$i + 1]);
+        }
+        return $array;
 	}
 }

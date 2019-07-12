@@ -36,7 +36,7 @@ class Tnwz extends Command
     protected $ws;
     protected $redis;
     protected $prefix = 'tnwz_';
-    protected $answer_countdown = 3;
+    protected $answer_countdown = 4;
 
 
 
@@ -89,7 +89,6 @@ class Tnwz extends Command
         foreach (REDIS_KEYS as $key => $value) {
             Redis::del($value);
         }
-        // Redis::command('del', $hdel);
 
         $this->ws->on('open', [$this, 'onOpen']);
         $this->ws->on('message', [$this, 'onMessage']);
@@ -109,68 +108,27 @@ class Tnwz extends Command
 
     public function onOpen($ws, $request) 
     {
-        // go(function() {
-        //     $redis = new \Swoole\Coroutine\Redis();
-        //     dump($redis);
-        //     $redis->connect('127.0.0.1', 6379);
-
-        //     $redis->setDefer();
-
-        //     $redis->set('key1', 'value1');
-        //     $redis->set('key2', 'value2');
-
-        //     $result1 = $redis->recv();
-        //     $result2 = $redis->recv();
-        // });
-        // dump(CoRedis::get('1'));
-        // dump(CoRedis::set('2', 'qq', 10));
-        // dump(CoRedis::set('3', 'bb'));
-        // dump(CoRedis::hset('4', 'e', 'f'));
-        // dump('xxx', CoRedis::hgetall('5'));
-        // dump(CoRedis::hgetall('4'));
-        // dump(CoRedis::hget('4', 'a'));
-        // dump(CoRedis::hdel('4', 'c'));
-        // dump(CoRedis::setnx('5', 'aaaa'));
-        // dump(CoRedis::expire('5', 10));
-
-        $redis = new \Swoole\Coroutine\Redis();
-        $redis->connect('127.0.0.1', 6379);
-        $redis->setDefer();
-        $redis->set('key1', 'value1');
-        $redis->set('key2', 'value2');
-
-        $result1 = $redis->recv();
-        $result2 = $redis->recv();
-        dump($result1, $result2);
-        $redis->set('key3', 'value3');
-        $redis->set('key4', 'value4');
-
-        $result1 = $redis->recv();
-        $result2 = $redis->recv();
-        dump($result1, $result2);
-
-        return;
-
-        dump('fd 接入 ' . $request->fd . ' 成功');
+        $fd = $request->fd;
+        dump('fd 接入 ' . $fd . ' 成功');
         $u_id         = intval($request->get['u_id'] ?? 0);
         $unique_token = $request->get['unique_token'] ?? '';
         dump('u_id: ' . $request->get['u_id'] . ' unique_token: ' . $unique_token);
 
         if (!$u_id || !$unique_token) {
             $resp = Response::json('哎呦，出现了点小错误', -4001);
-            $this->push($request->fd, $resp);
+            $this->push($fd, $resp);
         }
 
         $user = Users::info($u_id, ['u_id', 'unique_token']);
         if (empty($user)) {
             $resp = Response::json('亲，找不到您当前的用户', -4001);
-            $this->push($request->fd, $resp);
+            $this->push($fd, $resp);
         }
 
         $is_active = AdminsConfigs::isActive();
         if ($is_active != 0) {
             $resp = Response::json('活动不在进行中...', $is_active);
-            $this->push($request->fd, $resp);
+            $this->push($fd, $resp);
             return;
         }
 
@@ -178,110 +136,63 @@ class Tnwz extends Command
         $hset = [
             [
                 'key'   => REDIS_KEYS['fds'],
-                'field' => 'fd_' . $request->fd,
+                'field' => 'fd_' . $fd,
                 'value' => $u_id
             ],
             [
                 'key'   => REDIS_KEYS['u_ids'],
                 'field' => 'u_id_' . $u_id,
-                'value' => $request->fd
+                'value' => $fd
             ]
         ];
 
-        Redis::pipeline(function($pipe) use ($hset) {
+
+        CoRedis::pipeline(function($CoRedis) use ($hset) {
             foreach ($hset as $key => $value) {
-                $pipe->hset($value['key'], $value['field'], $value['value']);
+                CoRedis::hset($value['key'], $value['field'], $value['value']);
             }
         });
 
-        // go(function() use ($hset) {
-            // $redis = new \Swoole\Coroutine\Redis();
-            // $redis->connect(REDIS_CONFIG['host'], REDIS_CONFIG['port']);
-            // $redis->setDefer();
-            // dump($redis);
-            // foreach ($hset as $key => $value) {
-            //     $redis->hset($value['key'], $value['field'], $value['value']);
-            // }
-
-            // $redis->recv();
-        // });
-
         $resp = [
-            'fd'   => $request->fd,
+            'fd'   => $fd,
             'u_id' => $user['u_id']
         ];
         $resp = Response::json('连接成功', 200);
-        $this->push($request->fd, $resp);
+        $this->push($fd, $resp);
     }
 
 
     public function onMessage($ws, $request) 
     {
-        // go(function() {
-        //     dump('进来了！');
-        //     $redis = new \Swoole\Coroutine\Redis();
-        //     $redis->connect('192.168.83.133', 6379);
-        //     $redis->setDefer();
-
-        //     $redis->set('key1', 'value');
-        //     $result = $redis->recv();
-        //     dump($result);
-        // });
-        
-
-        // $redis = new \Swoole\Coroutine\Redis();
-        // $redis->connect('192.168.83.133', 6379);
-        // // $redis->setDefer();
-        // dump(1);
-        // $redis->set('key1', 'value');
-        // $a = $redis->get('key1');
-        // dump($a);
-        // sleep(1);
-        // $result = $redis->recv();
-        // $b = $redis->recv();
-        // dump(3);
-        // dump($b);
-        // dump('wo zai zheli');
-        // return;
-
+        $fd = $request->fd;
         $data = json_decode($request->data, true);
-        dump('server:message fd is ' . $request->fd);
+        dump('server:message fd is ' . $fd);
         dump('server:message data is ' . $request->data);
         dump('server:message opcode is ' . $request->opcode);
 
         if (!$data || !is_array($data)) {
             dump($data);
             $resp = Response::json('我不知道你在传什么东西~', -1);
-            $this->push($request->fd, $resp);
+            $this->push($fd, $resp);
             return;
         }
 
         $case = $data['case'] ?? '';
         $data = $data['data'] ?? [];
-        $fd = $request->fd;
 
-        $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $request->fd]);
+        // $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $fd]);
+        $u_id = CoRedis::hget(REDIS_KEYS['fds'], 'fd_' . $fd);
         if (!$u_id) {
             $resp = Response::json('系统出现了一点错误，请重新连接~', -4099);
-            $this->push($request->fd, $resp);
-            $this->ws->close($request->fd);
+            $this->push($fd, $resp);
+            $this->ws->close($fd);
             return;
         }
-
-        // $a = go(function() use ($fd) {
-        //     $redis = new \Swoole\Coroutine\Redis();
-        //     $redis->connect(REDIS_CONFIG['host'], REDIS_CONFIG['port']);
-
-        //     $redis->hget(REDIS_KEYS['fds'], 'fd_' . $fd);
-
-        //     $redis->recv();
-        // });
-        // dump($a);
 
         switch ($case) {
             case 'close':
                 //关系连接
-                $this->ws->close($request->fd);
+                $this->ws->close($fd);
                 break;
             case 'heartbeat':
                 //心跳包
@@ -292,21 +203,21 @@ class Tnwz extends Command
                 if ($res == -4006) {
                     dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
                     $resp = Response::json('您已经在排队队列中了~', $res);
-                    $this->push($request->fd, $resp);
+                    $this->push($fd, $resp);
                     return;
                 }
 
                 if ($res == -4007) {
                     dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
                     $resp = Response::json('您正在PK呢！', $res);
-                    $this->push($request->fd, $resp);
+                    $this->push($fd, $resp);
                     return;
                 }
 
                 if ($res == -1) {
                     dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
                     $resp = Response::json('系统出现了一点错误，请重新连接', $res);
-                    $this->push($request->fd, $resp);
+                    $this->push($fd, $resp);
                     return;
                 }
 
@@ -320,47 +231,37 @@ class Tnwz extends Command
             case 'item_select':
                 if (!isset($data['item'])) {
                     $resp = Response::json('您没有选择答案噢~', -1);
-                    $this->push($request->fd, $resp);
+                    $this->push($fd, $resp);
                     return;
                 }
 
                 if (!in_array($data['item'], ['a', 'b', 'c', 'd'])) {
                     $resp = Response::json('请选择在合理范围内的选项~', -1);
-                    $this->push($request->fd, $resp);
-                    return;
-                }
-
-                $fd = $request->fd;
-
-                //获取u_id
-                $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $fd]);
-                if (!$u_id) {
-                    $resp = Response::json('您的登录出现了一点错误，请重新链接~', -4099);
-                    $this->push($request->fd, $resp);
+                    $this->push($fd, $resp);
                     return;
                 }
 
                 //房号id
-                $room_id = Redis::command('hget', [REDIS_KEYS['rooms'], $u_id]);
+                $room_id = CoRedis::hget(REDIS_KEYS['rooms'], $u_id);
                 if (!$room_id) {
                     $resp = Response::json('您木有在PK噢~', -1);
-                    $this->push($request->fd, $resp);
+                    $this->push($fd, $resp);
                     return;
                 }
 
                 //房号详情
-                $room = Redis::command('hgetall', [$room_id]);
+                $room = CoRedis::hgetall($room_id);
                 dump('当前题目ID是: ' . $room['current_topic_id']);
                 if (!$room) {
                     $resp = Response::json('您木有在PK噢~~', -1);
-                    $this->push($request->fd, $resp);
+                    $this->push($fd, $resp);
                     return;
                 }
 
                 //回答题目顺序不正确
                 if ($room['current_topic_id'] != $data['current_num']) {
                     $resp = Response::json('当前题目进度为第' . ($room['current_topic_id']) . '题', -1);
-                    $this->push($request->fd, $resp);
+                    $this->push($fd, $resp);
                     return;
                 }
 
@@ -371,23 +272,23 @@ class Tnwz extends Command
                 $time_is_right = false;
                 if ($room['current_topic_id'] == 1) {
                     //这里减去3秒是前段动画时间
-                    if ($time_difference - 3 < $this->answer_countdown)
+                    if ($time_difference - 3 <= $this->answer_countdown)
                         $time_is_right = true;
 
-                    dump('答题花费时间---' . ($time_difference - 3));
+                    dump('1答题花费时间---' . ($time_difference - 3));
                 } else {
-                    if ($time_difference < $this->answer_countdown)
+                    if ($time_difference <= $this->answer_countdown)
                         $time_is_right = true;
 
-                    dump('答题花费时间---' . $time_difference);
+                    dump('2答题花费时间---' . $time_difference);
                 }
 
                 
 
                 if ($time_is_right == false) {
-                    Redis::pipeline(function($pipe) use ($room_id, $room) {
-                        $pipe->del($room_id);
-                        $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
+                    CoRedis::pipeline(function($CoReids) use ($room_id, $room) {
+                        CoRedis::del($room_id);
+                        CoRedis::hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
                     });
 
                     $resp = Response::json('当前题目进度异常', -4008);
@@ -402,16 +303,21 @@ class Tnwz extends Command
                 $player_select = $data['item'];
                 $is_answer_true = $player_select == $true_answer ? true : false;
 
-                Redis::pipeline(function($pipe) use ($u_id, $is_answer_true, $true_answer, $player_select, $room_id, $room) {
+                CoRedis::pipeline(function($CoRedis) use ($u_id, $is_answer_true, $true_answer, $player_select, $room_id, $room) {
                     $time = time();
-                    $pipe->hset($room_id, 'current_topic_id', $room['current_topic_id'] + 1);
-                    $pipe->hset($room_id, 'last_answer_time', $time);
+
+                    $update = [
+                        'current_topic_id' => $room['current_topic_id'] + 1,
+                        'last_answer_time' => $time
+                    ];
 
                     $res = ['true_answer' => $true_answer, 'player_select' => $player_select];
 
                     if ($u_id == $room['left_u_id'] && $is_answer_true == true) {
-                        $pipe->hset($room_id, 'left_answer', $room['left_answer'] . 'T');
-                        $pipe->hset($room_id, 'right_answer', $room['right_answer'] . 'F');
+                        $update['left_answer']  = $room['left_answer'] . 'T';
+                        $update['right_answer'] = $room['right_answer'] . 'F';
+
+                        CoRedis::hmset($room_id, $update);
 
                         $resp = Response::json('回答正确', 203, $res);
                         $this->push($room['left_fd'], $resp);
@@ -419,8 +325,10 @@ class Tnwz extends Command
                         $resp = Response::json('对方回答正确', 204, $res);
                         $this->push($room['right_fd'], $resp);
                     } else if ($u_id == $room['left_u_id'] && $is_answer_true == false) {
-                        $pipe->hset($room_id, 'left_answer', $room['left_answer'] . 'F');
-                        $pipe->hset($room_id, 'right_answer', $room['right_answer'] . 'T');
+                        $update['left_answer']  = $room['left_answer'] . 'F';
+                        $update['right_answer'] = $room['right_answer'] . 'T';
+
+                        CoRedis::hmset($room_id, $update);
 
                         $resp = Response::json('回答错误', 205, $res);
                         $this->push($room['left_fd'], $resp);
@@ -428,8 +336,10 @@ class Tnwz extends Command
                         $resp = Response::json('对方回答错误', 206, $res);
                         $this->push($room['right_fd'], $resp);
                     } else if ($u_id == $room['right_u_id'] && $is_answer_true == true) {
-                        $pipe->hset($room_id, 'left_answer', $room['left_answer'] . 'F');
-                        $pipe->hset($room_id, 'right_answer', $room['right_answer'] . 'T');
+                        $update['left_answer']  = $room['left_answer'] . 'F';
+                        $update['right_answer'] = $room['right_answer'] . 'T';
+
+                        CoRedis::hmset($room_id, $update);
 
                         $resp = Response::json('对方回答正确', 204, $res);
                         $this->push($room['left_fd'], $resp);
@@ -437,8 +347,10 @@ class Tnwz extends Command
                         $resp = Response::json('回答正确', 203, $res);
                         $this->push($room['right_fd'], $resp);
                     } else if ($u_id == $room['right_u_id'] && $is_answer_true == false) {
-                        $pipe->hset($room_id, 'left_answer', $room['left_answer'] . 'T');
-                        $pipe->hset($room_id, 'right_answer', $room['right_answer'] . 'F');
+                        $update['left_answer']  = $room['left_answer'] . 'T';
+                        $update['right_answer'] = $room['right_answer'] . 'F';
+
+                        CoRedis::hmset($room_id, $update);
 
                         $resp = Response::json('对方回答错误', 206, $res);
                         $this->push($room['left_fd'], $resp);
@@ -446,8 +358,8 @@ class Tnwz extends Command
                         $resp = Response::json('回答错误', 205, $res);
                         $this->push($room['right_fd'], $resp);
                     } else {
-                        $pipe->del($room_id);
-                        $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
+                        CoRedis::del($room_id);
+                        CoRedis::hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
 
                         $resp = Response::json('还有这种情况？？？', -4009);
                         $this->push($room['left_fd'], $resp);
@@ -458,7 +370,7 @@ class Tnwz extends Command
                     }
                 });
 
-                $room = Redis::command('hgetall', [$room_id]);
+                $room = CoRedis::hgetall($room_id);
 
                 $arr = Game::isGameEnding($room_id, $room);
                 if (!empty($arr)) {
@@ -472,62 +384,36 @@ class Tnwz extends Command
                 break;
             case 'timeout':
                 //回答超时
-                $fd = $request->fd;
                 $time = time();
 
-                //获取u_id
-                $redis = new \Swoole\Coroutine\Redis();
-                $redis->connect('192.168.83.133', 6379);
-                $u_id = $redis->hget(REDIS_KEYS['fds'], 'fd_' . $fd);
-                // $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $fd]);
-                if (!$u_id) {
-                    $resp = Response::json('您的登录出现了一点错误，请重新链接~', -4099);
-                    $this->push($request->fd, $resp);
-                    return;
-                }
-
                 //房号id
-                $room_id = $redis->hget(REDIS_KEYS['rooms'], $u_id);
-                // $room_id = Redis::hget(REDIS_KEYS['rooms'], $u_id);
+                $room_id = CoRedis::hget(REDIS_KEYS['rooms'], $u_id);
                 if (!$room_id) {
                     $resp = Response::json('您木有在PK噢~', -1);
-                    $this->push($request->fd, $resp);
+                    $this->push($fd, $resp);
                     return;
                 }
 
                 $lock_name = $this->prefix . $room_id . '_room_lock';
-                $room_lock = $redis->setnx($lock_name, $time);
-                // $room_lock = Redis::setnx($lock_name, $time);
+                $room_lock = CoRedis::setnx($lock_name, $time);
                 if (!$room_lock) {
                     dump('数据发送重复，已忽略处理');
                     return;
                 }
 
-                $predis = new \Swoole\Coroutine\Redis();
-                $predis->connect('192.168.83.133', 6379);
-                $predis->setDefer();
 
-                $predis->hGetAll($room_id);
-                $predis->expire($lock_name, $this->answer_countdown - 2);
-
-                $room = $predis->recv();
-                $redisRes[0] = $predis->recv();
-                // list($room, $redisRes[0]) = Redis::pipeline(function($pipe) use ($lock_name, $room_id, $time) {
-                //     $pipe->hgetall($room_id);
-                //     $pipe->expire($lock_name, $this->answer_countdown - 2);
-                // });
-                $count = count($room);
-                for ($i=0; $i < $count; $i += 2) { 
-                    $room[$room[$i]] = $room[$i + 1];
-                    unset($room[$i], $room[$i + 1]);
-                }
+                list($room, $redisRes[0]) = CoRedis::pipeline(function($CoRedis) use ($room_id, $lock_name) {
+                    CoRedis::hgetall($room_id);
+                    CoRedis::expire($lock_name, $this->answer_countdown - 2);
+                });
+                $room = CoRedis::format($room);
 
                 dump('redis 数据返回', $room, $redisRes);
 
                 //房号详情
                 if (!$room) {
                     $resp = Response::json('您木有在PK噢~~', -1);
-                    $this->push($request->fd, $resp);
+                    $this->push($fd, $resp);
                     return;
                 }
 
@@ -543,14 +429,12 @@ class Tnwz extends Command
                     return;
                 }
 
-                // dump('is ok');
-                $redisRes = $redis->hMset($room_id, [
+                $redisRes = CoRedis::hmset($room_id, [
                     'current_topic_id' => $room['current_topic_id'] + 1,
                     'last_answer_time' => $time,
-                    'left_answer' => $room['left_answer'] . 'F',
-                    'right_answer' => $room['right_answer'] . 'F'
+                    'left_answer'      => $room['left_answer'] . 'F',
+                    'right_answer'     => $room['right_answer'] . 'F'
                 ]);
-                // $redisRes = Redis::hmset($room_id, 'current_topic_id', $room['current_topic_id'] + 1, 'last_answer_time', $time, 'left_answer', $room['left_answer'] . 'F', 'right_answer', $room['right_answer'] . 'F');
                 dump('res is ', $redisRes);
 
                 $resp = Response::json('超时回答了哦~', 207);
@@ -577,7 +461,7 @@ class Tnwz extends Command
                 break;
             default:
                 $resp = Response::json('事件类型？...', -1);
-                $this->push($request->fd, $resp);
+                $this->push($fd, $resp);
                 return;
                 break;
         }

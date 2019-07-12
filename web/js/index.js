@@ -790,13 +790,15 @@
 	};
 
 	//PK倒计时
-	PK.prototype.countdown = function(_countdown) {
+	PK.prototype.countdown = function(_countdown, answer_timeout = false) {
 		var self = this;
 
 		PK.countdown_id = setTimeout(function() {
 			if (_countdown == 0) {
-				// if (User.u_id == 1) {
+				if (answer_timeout == true)
 					WsServicer.send(WsServicer.answerTimeout);
+				// if (User.u_id == 1) {
+					// WsServicer.send(WsServicer.answerTimeout);
 				// } else {
 				// 	setTimeout(function() {
 				// 		WsServicer.send(WsServicer.answerTimeout);
@@ -828,9 +830,11 @@
 			} else {
 				_countdown--;
 				document.getElementById("pk-time-num").innerText = _countdown;
+				if (_countdown == 0)
+					answer_timeout = true;
 			}
 
-			PK.countdown(_countdown)
+			PK.countdown(_countdown, answer_timeout);
 		}, 1000);
 		return '';
 	};
@@ -1048,13 +1052,13 @@
 
 
 	//下一道题目
-	PK.prototype.next = function() {
+	PK.prototype.next = function(answer_timeout = false) {
 		console.log('doing next')
 		clearTimeout(PK.countdown_id);
 		PK.countdown_id = '';
 		setTimeout(function() {
 			document.getElementById("pk-time-num").innerText = countdown;
-			PK.countdown(0);
+			PK.countdown(0, answer_timeout);
 		}, 500);
 	};
 
