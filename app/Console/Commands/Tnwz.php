@@ -164,6 +164,8 @@ class Tnwz extends Command
 
     public function onMessage($ws, $request) 
     {
+        $GLOBALS['ws'] = $this->ws;
+        
         $fd = $request->fd;
         $data = json_decode($request->data, true);
         dump('server:message fd is ' . $fd);

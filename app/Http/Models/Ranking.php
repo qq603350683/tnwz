@@ -25,6 +25,9 @@ class Ranking {
 		if ($res[1] == 1)
 			return -4007;
 
+		$resp = Response::json('qqqqqqqqqqqq', -1);
+		($GLOBALS['ws'])->push(1, $resp);
+
 		$res = Redis::command('sadd', [REDIS_KEYS['ranking'], $u_id]);
 		return $res ? 1 : -1;
 	}

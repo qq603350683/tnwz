@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Input;
 // use App\Http\Controllers\Controller;
 
+use Config;
 use DB;
 use Excel;
 
@@ -17,13 +18,15 @@ class IndexController extends Controller
 {
 	public function index()
 	{
+		ini_set("max_execution_time", "1800");
 		die;
 		$list = DB::table('splide_topic_repositories')
 			->select('question', 'cate_id', 'cate_name', 'a', 'b', 'c', 'd', 'answer', 'explanation', 'question_id')
 			->where('cate_id', '>', 0)
+			->offset(15000)
+			->limit(5000)
 			->get()
 			->toArray();
-		// dd($list);
 		$list = array_map('get_object_vars', $list);
 		foreach ($list as $key => $value) {
 			switch ($value['cate_name']) {
@@ -87,7 +90,24 @@ class IndexController extends Controller
 	//导出excel
 	public function excel()
 	{
-		$data = DB::table('topics_repositories')->get()->toArray();
+		Config::set([
+        	'database.connections.mysql' => [
+				'driver'    => 'mysql',
+				'host'      => '192.168.1.71',
+				'port'      => '3306',
+				'database'  => 'xiehouyu',
+				'username'  => 'root',
+				'password'  => 'root',
+				'charset'   => 'utf8mb4',
+				'collation' => 'utf8mb4_unicode_ci',
+				'prefix'    => '',
+				'strict'    => false,
+				'engine'    => null,
+        	]
+        ]);
+
+		ini_set("max_execution_time", "1800");
+		$data = DB::table('njjzw')->get()->toArray();
 		$data = array_map('get_object_vars', $data);
 
 		return Excel::create('数据导出', function($excel) use ($data) {
@@ -97,37 +117,17 @@ class IndexController extends Controller
                 	$cell->setValue('ID');
                 });
                 $sheet->cell('B1', function($cell) {
-                	$cell->setValue('题目');
+                	$cell->setValue('标题');
                 });
                 $sheet->cell('C1', function($cell) {
-                	$cell->setValue('题目类型');
-                });
-                $sheet->cell('D1', function($cell) {
-                	$cell->setValue('a'); 
-                });
-                $sheet->cell('E1', function($cell) {
-                	$cell->setValue('b'); 
-                });
-                $sheet->cell('F1', function($cell) {
-                	$cell->setValue('c'); 
-                });
-                $sheet->cell('G1', function($cell) {
-                	$cell->setValue('d'); 
-                });
-                $sheet->cell('H1', function($cell) {
-                	$cell->setValue('question'); 
+                	$cell->setValue('答案');
                 });
                 if (!empty($data)) {
                     foreach ($data as $key => $value) {
                         $i = $key+2;
-                        $sheet->cell('A'.$i, $value['tr_id']);
-                        $sheet->cell('B'.$i, $value['question']);
-                        $sheet->cell('C'.$i, $value['cate_name']);
-                        $sheet->cell('D'.$i, $value['a']);
-                        $sheet->cell('E'.$i, $value['b']);
-                        $sheet->cell('F'.$i, $value['c']);
-                        $sheet->cell('G'.$i, $value['d']);
-                        $sheet->cell('H'.$i, $value['answer']);
+                        $sheet->cell('A'.$i, $value['id']);
+                        $sheet->cell('B'.$i, $value['title']);
+                        $sheet->cell('C'.$i, $value['answer']);
                     }
                 }
             });
