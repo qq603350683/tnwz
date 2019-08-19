@@ -182,7 +182,6 @@ class Tnwz extends Command
         $case = $data['case'] ?? '';
         $data = $data['data'] ?? [];
 
-        // $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $fd]);
         $u_id = CoRedis::hget(REDIS_KEYS['fds'], 'fd_' . $fd);
         if (!$u_id) {
             $resp = Response::json('系统出现了一点错误，请重新连接~', -4099);
@@ -459,7 +458,6 @@ class Tnwz extends Command
                 }
 
                 dump('超时处理执行完毕');
-
                 break;
             default:
                 $resp = Response::json('事件类型？...', -1);

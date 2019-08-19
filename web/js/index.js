@@ -101,7 +101,9 @@
 		left_true_num = document.getElementById('left-true-num'),
 		right_true_num = document.getElementById('right-true-num'),
 		get_gold = document.getElementById('get-gold'),
-		get_exp = document.getElementById('get-exp');
+		get_exp = document.getElementById('get-exp')
+		pk_again = document.getElementById('pk-again')
+		go_index = document.getElementById('go-index');
 
 	var ranking_main_max = 100; //排行榜最多获取100名
 	var is_active = 0;       //0待定状态 1活动进行中 -4002活动尚未开始   -4003活动已经结束
@@ -247,10 +249,12 @@
 				break;
 			case 203:
 				//回答正确
+				PK.left_true_num += 1; 
 				PK.iAmRight(data.data.true_answer, data.data.player_select, PK.next);
 				break;
 			case 204:
 				//对方回答正确
+				PK.right_true_num += 1; 
 				PK.opponentRight(data.data.true_answer, data.data.player_select, PK.next);
 				break;
 			case 205:
@@ -335,7 +339,6 @@
 	Base.prototype.reuqestGet = function(param) {
 		var url = location.href;
 		//判断是否有参数
-		// console.log(url.indexOf('?'));
 		if (url.indexOf('?') == -1)
 			return '';
 		var _params = url.split('?');
@@ -345,7 +348,6 @@
 			return _params[0] == param ? _params[1] : '';
 		} else {
 			_params = _params.split('&');
-			console.log(_params);
 			for (var i = 0; i < _params.length; i++) {
 				_params[i] = _params[i].split('=');
 				if (_params[i][0] == param)
@@ -699,7 +701,6 @@
 	       		ranking_main.innerHTML = self.offset == ranking_main_max || len < self.limit ? self.html + self.endingHtml : self.html + self.loadingHtml;
 	       		self.loadingFlag = true;
        		}
-       		// console.log(allHtml);
        	});
 	};
 
@@ -723,14 +724,17 @@
 		var self = this;
 		PK.topic = data.topics;
 		PK.topicTotalNum = data.topics.length;
+		PK.itemStatus = 0;
 		PK.currentTopicNum = 0;
 		PK.countdown_id = '';
 		PK.left_process = 0;
 		PK.right_process = 0;
 		PK.left_score = 0;
 		PK.right_score = 0;
+		PK.left_true_num = 0;
+		PK.right_true_num = 0;
+		PK.opponents = data.user;
 
-		var opponents = data.user;
 		var html = '<div class="pk_0 animated bounceInLeft"> \
 			            <div><img src="' + User.avatar + '"></div> \
 			            <span>' + User.nickname + '</span> \
@@ -738,10 +742,10 @@
 			            <span>来自:' + User.city + '</span> \
 			        </div> \
 			        <div class="pk_1 animated bounceInRight"> \
-			            <div><img src="' + opponents.wx_avatar + '"></div> \
-			            <span>' + opponents.nickname + '</span> \
+			            <div><img src="' + PK.opponents.wx_avatar + '"></div> \
+			            <span>' + PK.opponents.nickname + '</span> \
 			            <br > \
-			            <span>来自:' + opponents.city + '</span> \
+			            <span>来自:' + PK.opponents.city + '</span> \
 			        </div> \
 			        <img id="pk-logo" class="animated zoomIn" src="images/title.png">';
 
@@ -755,7 +759,7 @@
 				                <div id="pk-time-num">' + countdown + '</div> \
 				            </div> \
 				            <div id="pk-user-right"> \
-				                <img src="' + opponents.wx_avatar + '"> \
+				                <img src="' + PK.opponents.wx_avatar + '"> \
 				            </div> \
 				        </div> \
 				        <div id="pk-process-left"> \
@@ -768,8 +772,8 @@
 		left_avatar.setAttribute('src', User.avatar);
 		left_nickname.innerHTML = User.nickname;
 
-		right_avatar.setAttribute('src', opponents.wx_avatar);
-		right_nickname.innerHTML = opponents.nickname;
+		right_avatar.setAttribute('src', PK.opponents.wx_avatar);
+		right_nickname.innerHTML = PK.opponents.nickname;
 
 		Ranking.moveTop(function() {
 			setTimeout(function() {
@@ -797,13 +801,6 @@
 			if (_countdown == 0) {
 				if (answer_timeout == true)
 					WsServicer.send(WsServicer.answerTimeout);
-				// if (User.u_id == 1) {
-					// WsServicer.send(WsServicer.answerTimeout);
-				// } else {
-				// 	setTimeout(function() {
-				// 		WsServicer.send(WsServicer.answerTimeout);
-				// 	}, 1000);
-				// }
 
 				PK.currentTopicNum += 1;
 
@@ -897,7 +894,6 @@
 
 	//PK答案绑定事件
 	PK.prototype.itemBindClick = function(a, b, c, d) {
-		console.log(a, b, c, d)
 		if (a)
 			document.getElementById('item_a').onclick = this.itemClick;
 
@@ -945,15 +941,6 @@
 				return false;
 		}
 
-		// var ds = {
-  //   		'data' : {
-  //   			'true_answer' : 'a'
-  //   		},
-  //   		'message' : '206~~~~~',
-  //   		'code' : 206
-  //   	};
-  //   	Base.response(ds);
-  		console.log(data);
 		WsServicer.send(data);
 	};
 
@@ -1053,7 +1040,6 @@
 
 	//下一道题目
 	PK.prototype.next = function(answer_timeout = false) {
-		console.log('doing next')
 		clearTimeout(PK.countdown_id);
 		PK.countdown_id = '';
 		setTimeout(function() {
@@ -1066,6 +1052,7 @@
 	//
 	PK.prototype.ending = function(direction) {
 		clearTimeout(PK.countdown_id);
+
 		PK.countdown_id = '';
 
 		switch (direction) {
@@ -1079,11 +1066,15 @@
 
 		
 		Base.top(pk_ending, function() {
-			console.log('pk close');
     		PK.close();
+
+    		Base.css(pk, {'display' : 'none'});
+			Base.css(pk_info, {'display' : 'none'});
+
+			
     	});
 
-		console.log(direction + '获得本场游戏胜利');
+		// console.log(direction + '获得本场游戏胜利');
 	};
 
 	//更新进度条
@@ -1122,7 +1113,20 @@
 
 	//结果显示
 	PK.prototype.endingShow = function() {
+		left_avatar.innerHTML = User.wx_avatar;
+		left_nickname.innerHTML = User.nickname;
+		left_lv.innerHTML = User.lv;
+		left_true_num.innerHTML = '共答对' + PK.left_true_num + '题';
 
+		right_avatar.innerHTML = PK.opponents.wx_avatar;
+		right_nickname.innerHTML = PK.opponents.nickname;
+		right_lv.innerHTML = PK.opponents.lv;
+		right_true_num.innerHTML = '共答对' + PK.right_true_num + '题';
+
+		Base.css(pk_ending, {'display': 'block'});
+
+		PK.left_true_num  = 0;
+		PK.right_true_num = 0;
 	};
 
 	//------------------------------------------------------------------PK-----end----------------------------
@@ -1207,7 +1211,7 @@
 		var data = JSON.parse(e.data);
 		Base.response(data);
 		
-		console.log(data);
+		// console.log(data);
 	};
 
 	//连接关闭
@@ -1375,6 +1379,34 @@
     	}
     	WsServicer.send(WsServicer.quitQueue);
     	Ranking.quit();
+    };
+
+
+    //返回首页
+    go_index.onclick = function() {
+    	Base.css(pk_ending, {
+    		'display': 'none'
+    	});
+    };
+
+
+    //继续PK
+    pk_again.onclick = function() {
+    	Base.css(pk_ending, {
+    		'display': 'none'
+    	});
+
+    	if (!Game.active(is_active))
+    		return false;
+    	Base.title(params.ranking_loading);
+    	Base.top(ranking_loading, function() {
+    		Ranking.start();
+    		WsServicer.send(WsServicer.pkStart);
+    		// setTimeout(function() {
+    		// 	PK.status = 1;
+    		// 	PK.start();
+    		// },2000);
+    	});
     };
 
     //模拟打开匹配成功

@@ -9,10 +9,6 @@ class Users extends Model
 {
 	public $timestamps = false;
 
-	// const CREATED_AT = 'create_time';
-	// const UPDATED_AT = 'update_time';
-
-	// protected $dateFormat = 'U';
 	protected $primaryKey = 'u_id';
 
 	public static function info($u_id, $select = '*'):array
@@ -74,7 +70,7 @@ class Users extends Model
 			$total_exp = $info['exp'] + $value['exp'];
 			if ($total_exp >= $info['lv_exp']) {
 				$update['lv'] = $info['lv'] + 1;
-				$update['exp'] = $info['lv_exp'] - $total_exp;
+				$update['exp'] = $total_exp - $info['lv_exp'];
 			} else {
 				$update['exp'] = $total_exp;
 			}
