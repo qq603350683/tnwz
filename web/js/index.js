@@ -156,7 +156,7 @@
 				top = top < window_h ? top : window_h;
 				dom.style.top = top + 'px';
 				self.topBack(dom, callback);
-				if (callback && typeof(callback) === "function")
+				if (top == window_h && callback && typeof(callback) === "function")
 					callback();
 			}
 		}, 1);
@@ -235,6 +235,7 @@
 	//ajax返回基础处理函数
 	Base.prototype.response = function(data) {
 		console.log(data.message);
+		console.log(data.code);
 		switch(data.code) {
 			case 201:
 				//匹配到对手了
@@ -735,6 +736,9 @@
 		PK.right_true_num = 0;
 		PK.opponents = data.user;
 
+		Base.css(pk_again, {'display': 'none'});
+		Base.css(go_index, {'display': 'none'});
+
 		var html = '<div class="pk_0 animated bounceInLeft"> \
 			            <div><img src="' + User.avatar + '"></div> \
 			            <span>' + User.nickname + '</span> \
@@ -972,6 +976,7 @@
 		PK.left_score += 1;
 
     	var percent =  PK.left_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
+    	console.log('xxxxxxxxxxx' + percent)
     	PK.processUpdate('left', percent);
     	if (percent == 100)
     		return false;
@@ -1063,18 +1068,19 @@
 				Message.show('fail', '很遗憾，本场游戏失败了~');
 				break;
 		}
-
 		
 		Base.top(pk_ending, function() {
     		PK.close();
 
     		Base.css(pk, {'display' : 'none'});
 			Base.css(pk_info, {'display' : 'none'});
-
+			Base.css(ranking_loading, {'top' : '100%'});
 			
+			setTimeout(function() {
+				Base.css(pk_again, {'display': 'block'});
+				Base.css(go_index, {'display': 'block'});
+			}, 800);
     	});
-
-		// console.log(direction + '获得本场游戏胜利');
 	};
 
 	//更新进度条
@@ -1134,8 +1140,8 @@
 
 	//------------------------------------------------------------------连接Websocket-----start----------------------------
 	var WsServicer = window.WsServicer = function() {
-		// this.host = 'ws://192.168.26.129';
-		this.host = 'ws://192.168.83.133';
+		this.host = 'ws://192.168.26.129';
+		// this.host = 'ws://192.168.83.133';
 		this.prot = '9501';
 		
 	};
@@ -1364,10 +1370,6 @@
     	Base.top(ranking_loading, function() {
     		Ranking.start();
     		WsServicer.send(WsServicer.pkStart);
-    		// setTimeout(function() {
-    		// 	PK.status = 1;
-    		// 	PK.start();
-    		// },2000);
     	});
     };
 
@@ -1377,6 +1379,7 @@
     		Message.show('warning', '已经匹配到对手了...');
     		return false;
     	}
+
     	WsServicer.send(WsServicer.quitQueue);
     	Ranking.quit();
     };
@@ -1384,28 +1387,21 @@
 
     //返回首页
     go_index.onclick = function() {
-    	Base.css(pk_ending, {
-    		'display': 'none'
-    	});
+    	Base.topBack(pk_ending);
     };
 
 
     //继续PK
     pk_again.onclick = function() {
-    	Base.css(pk_ending, {
-    		'display': 'none'
-    	});
+    	Base.topBack(pk_ending, function() {
+    		if (!Game.active(is_active))
+	    		return false;
 
-    	if (!Game.active(is_active))
-    		return false;
-    	Base.title(params.ranking_loading);
-    	Base.top(ranking_loading, function() {
-    		Ranking.start();
-    		WsServicer.send(WsServicer.pkStart);
-    		// setTimeout(function() {
-    		// 	PK.status = 1;
-    		// 	PK.start();
-    		// },2000);
+	    	Base.title(params.ranking_loading);
+	    	Base.top(ranking_loading, function() {
+	    		Ranking.start();
+	    		WsServicer.send(WsServicer.pkStart);
+	    	});
     	});
     };
 
