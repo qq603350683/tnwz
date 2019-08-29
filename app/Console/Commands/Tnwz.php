@@ -7,13 +7,17 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Redis;
 
 use App\Http\Models\{
-    Response,
-    AdminsConfigs,
+    Game,
     Users,
     Topics,
-    Game,
     Ranking,
-    CoRedis
+    CoRedis,
+    Response,
+    ResponseCode,
+    AdminsConfigs,
+    WebsocketOnOpen,
+    WebsocketOnClose,
+    WebsocketOnMessage
 };
 
 class Tnwz extends Command
@@ -82,19 +86,16 @@ class Tnwz extends Command
             'heartbeat_idle_time'      => 25,      //25秒内没收到任何信息链接强制关闭
         ]);
 
-
-        
-
         //清空Redis
         foreach (REDIS_KEYS as $key => $value) {
             Redis::del($value);
         }
 
-        $this->ws->on('open', [$this, 'onOpen']);
-        $this->ws->on('message', [$this, 'onMessage']);
-        $this->ws->on('close', [$this, 'onClose']);
-        $this->ws->on('task', [$this, 'onTask']);
-        $this->ws->on('finish', [$this, 'onFinish']);
+        $this->ws->on('open',        [$this, 'onOpen']);
+        $this->ws->on('message',     [$this, 'onMessage']);
+        $this->ws->on('close',       [$this, 'onClose']);
+        $this->ws->on('task',        [$this, 'onTask']);
+        $this->ws->on('finish',      [$this, 'onFinish']);
         $this->ws->on('WorkerStart', [$this, 'onWorkerStart']);
         $this->ws->start();
     }
@@ -108,363 +109,314 @@ class Tnwz extends Command
 
     public function onOpen($ws, $request) 
     {
-        $fd = $request->fd;
-        dump('fd 接入 ' . $fd . ' 成功');
-        $u_id         = intval($request->get['u_id'] ?? 0);
-        $unique_token = $request->get['unique_token'] ?? '';
-        dump('u_id: ' . $request->get['u_id'] . ' unique_token: ' . $unique_token);
-
-        if (!$u_id || !$unique_token) {
-            $resp = Response::json('哎呦，出现了点小错误', -4001);
-            $this->push($fd, $resp);
-        }
-
-        $user = Users::info($u_id, ['u_id', 'unique_token']);
-        if (empty($user)) {
-            $resp = Response::json('亲，找不到您当前的用户', -4001);
-            $this->push($fd, $resp);
-        }
-
-        $is_active = AdminsConfigs::isActive();
-        if ($is_active != 0) {
-            $resp = Response::json('活动不在进行中...', $is_active);
-            $this->push($fd, $resp);
-            return;
-        }
-
-        //保存到redis
-        $hset = [
-            [
-                'key'   => REDIS_KEYS['fds'],
-                'field' => 'fd_' . $fd,
-                'value' => $u_id
-            ],
-            [
-                'key'   => REDIS_KEYS['u_ids'],
-                'field' => 'u_id_' . $u_id,
-                'value' => $fd
-            ]
-        ];
-
-
-        CoRedis::pipeline(function($CoRedis) use ($hset) {
-            foreach ($hset as $key => $value) {
-                CoRedis::hset($value['key'], $value['field'], $value['value']);
-            }
-        });
-
-        $resp = [
-            'fd'   => $fd,
-            'u_id' => $user['u_id']
-        ];
-        $resp = Response::json('连接成功', 200);
-        $this->push($fd, $resp);
+        WebsocketOnOpen::open($ws, $request);
     }
 
 
     public function onMessage($ws, $request) 
     {
-        $GLOBALS['ws'] = $this->ws;
+        WebsocketOnMessage::message($ws, $request);
+        // $GLOBALS['ws'] = $this->ws;
         
-        $fd = $request->fd;
-        $data = json_decode($request->data, true);
-        dump('server:message fd is ' . $fd);
-        dump('server:message data is ' . $request->data);
-        dump('server:message opcode is ' . $request->opcode);
+        // $fd = $request->fd;
+        // $data = json_decode($request->data, true);
+        // dump('server:message fd is ' . $fd);
+        // dump('server:message data is ' . $request->data);
+        // dump('server:message opcode is ' . $request->opcode);
 
-        if (!$data || !is_array($data)) {
-            dump($data);
-            $resp = Response::json('我不知道你在传什么东西~', -1);
-            $this->push($fd, $resp);
-            return;
-        }
+        // if (!$data || !is_array($data)) {
+        //     dump($data);
+        //     $resp = Response::json('我不知道你在传什么东西~', ResponseCode::Error);
+        //     $this->push($fd, $resp);
+        //     return;
+        // }
 
-        $case = $data['case'] ?? '';
-        $data = $data['data'] ?? [];
+        // $case = $data['case'] ?? '';
+        // $data = $data['data'] ?? [];
 
-        $u_id = CoRedis::hget(REDIS_KEYS['fds'], 'fd_' . $fd);
-        if (!$u_id) {
-            $resp = Response::json('系统出现了一点错误，请重新连接~', -4099);
-            $this->push($fd, $resp);
-            $this->ws->close($fd);
-            return;
-        }
+        // $u_id = CoRedis::hget(REDIS_KEYS['fds'], 'fd_' . $fd);
+        // if (!$u_id) {
+        //     $resp = Response::json('系统出现了一点错误，请重新连接~', ResponseCode::SystemAbnormal);
+        //     $this->push($fd, $resp);
+        //     $this->ws->close($fd);
+        //     return;
+        // }
 
-        switch ($case) {
-            case 'close':
-                //关系连接
-                $this->ws->close($fd);
-                break;
-            case 'heartbeat':
-                //心跳包
-                break;
-            case 'join_ranking':
-                //加入PK排队队列
-                $res = Ranking::join($u_id);
-                if ($res == -4006) {
-                    dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
-                    $resp = Response::json('您已经在排队队列中了~', $res);
-                    $this->push($fd, $resp);
-                    return;
-                }
+        // switch ($case) {
+        //     case 'close':
+        //         //关系连接
+        //         $this->ws->close($fd);
+        //         break;
+        //     case 'heartbeat':
+        //         //心跳包
+        //         break;
+        //     case 'join_ranking':
+        //         //加入PK排队队列
+        //         $res = Ranking::join($u_id);
+        //         if ($res == -4006) {
+        //             dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
+        //             $resp = Response::json('您已经在排队队列中了~', $res);
+        //             $this->push($fd, $resp);
+        //             return;
+        //         }
 
-                if ($res == -4007) {
-                    dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
-                    $resp = Response::json('您正在PK呢！', $res);
-                    $this->push($fd, $resp);
-                    return;
-                }
+        //         if ($res == -4007) {
+        //             dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
+        //             $resp = Response::json('您正在PK呢！', $res);
+        //             $this->push($fd, $resp);
+        //             return;
+        //         }
 
-                if ($res == -1) {
-                    dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
-                    $resp = Response::json('系统出现了一点错误，请重新连接', $res);
-                    $this->push($fd, $resp);
-                    return;
-                }
+        //         if ($res == -1) {
+        //             dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
+        //             $resp = Response::json('系统出现了一点错误，请重新连接', $res);
+        //             $this->push($fd, $resp);
+        //             return;
+        //         }
 
-                dump('u_id: ' . $u_id . ' 加入排位排队成功');
-                break;
-            case 'quit_ranking':
-                //退出PK排队队列
-                $res = Ranking::quit($u_id);
-                dump('u_id: ' . $u_id . ' 退出排位排队' . ($res == true ? '成功' : '失败'));
-                break;
-            case 'item_select':
-                if (!isset($data['item'])) {
-                    $resp = Response::json('您没有选择答案噢~', -1);
-                    $this->push($fd, $resp);
-                    return;
-                }
+        //         dump('u_id: ' . $u_id . ' 加入排位排队成功');
+        //         break;
+        //     case 'quit_ranking':
+        //         //退出PK排队队列
+        //         $res = Ranking::quit($u_id);
+        //         dump('u_id: ' . $u_id . ' 退出排位排队' . ($res == true ? '成功' : '失败'));
+        //         break;
+        //     case 'item_select':
+        //         if (!isset($data['item'])) {
+        //             $resp = Response::json('您没有选择答案噢~', ResponseCode::Error);
+        //             $this->push($fd, $resp);
+        //             return;
+        //         }
 
-                if (!in_array($data['item'], ['a', 'b', 'c', 'd'])) {
-                    $resp = Response::json('请选择在合理范围内的选项~', -1);
-                    $this->push($fd, $resp);
-                    return;
-                }
+        //         if (!in_array($data['item'], ['a', 'b', 'c', 'd'])) {
+        //             $resp = Response::json('请选择在合理范围内的选项~', ResponseCode::Error);
+        //             $this->push($fd, $resp);
+        //             return;
+        //         }
 
-                //房号id
-                $room_id = CoRedis::hget(REDIS_KEYS['rooms'], $u_id);
-                if (!$room_id) {
-                    $resp = Response::json('您木有在PK噢~', -1);
-                    $this->push($fd, $resp);
-                    return;
-                }
+        //         //房号id
+        //         $room_id = CoRedis::hget(REDIS_KEYS['rooms'], $u_id);
+        //         if (!$room_id) {
+        //             $resp = Response::json('您木有在PK噢~', ResponseCode::Error);
+        //             $this->push($fd, $resp);
+        //             return;
+        //         }
 
-                //房号详情
-                $room = CoRedis::hgetall($room_id);
-                dump('当前题目ID是: ' . $room['current_topic_id']);
-                if (!$room) {
-                    $resp = Response::json('您木有在PK噢~~', -1);
-                    $this->push($fd, $resp);
-                    return;
-                }
+        //         //房号详情
+        //         $room = CoRedis::hgetall($room_id);
+        //         dump('当前题目ID是: ' . $room['current_topic_id']);
+        //         if (!$room) {
+        //             $resp = Response::json('您木有在PK噢~~', ResponseCode::Error);
+        //             $this->push($fd, $resp);
+        //             return;
+        //         }
 
-                //回答题目顺序不正确
-                if ($room['current_topic_id'] != $data['current_num']) {
-                    $resp = Response::json('当前题目进度为第' . ($room['current_topic_id']) . '题', -1);
-                    $this->push($fd, $resp);
-                    return;
-                }
+        //         //回答题目顺序不正确
+        //         if ($room['current_topic_id'] != $data['current_num']) {
+        //             $resp = Response::json('当前题目进度为第' . ($room['current_topic_id']) . '题', ResponseCode::Error);
+        //             $this->push($fd, $resp);
+        //             return;
+        //         }
 
-                //双方都超时回答处理，解散当前PK
-                $time_difference = time() - $room['last_answer_time'];
+        //         //双方都超时回答处理，解散当前PK
+        //         $time_difference = time() - $room['last_answer_time'];
 
-                //判断时间是否正确
-                $time_is_right = false;
-                if ($room['current_topic_id'] == 1) {
-                    //这里减去3秒是前段动画时间
-                    if ($time_difference - 3 <= $this->answer_countdown)
-                        $time_is_right = true;
+        //         //判断时间是否正确
+        //         $time_is_right = false;
+        //         if ($room['current_topic_id'] == 1) {
+        //             //这里减去3秒是前段动画时间
+        //             if ($time_difference - 3 <= $this->answer_countdown)
+        //                 $time_is_right = true;
 
-                    dump('1答题花费时间---' . ($time_difference - 3));
-                } else {
-                    if ($time_difference <= $this->answer_countdown)
-                        $time_is_right = true;
+        //             dump('1答题花费时间---' . ($time_difference - 3));
+        //         } else {
+        //             if ($time_difference <= $this->answer_countdown)
+        //                 $time_is_right = true;
 
-                    dump('2答题花费时间---' . $time_difference);
-                }
-
-                
-
-                if ($time_is_right == false) {
-                    CoRedis::pipeline(function($CoReids) use ($room_id, $room) {
-                        CoRedis::del($room_id);
-                        CoRedis::hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
-                    });
-
-                    $resp = Response::json('当前题目进度异常', -4008);
-                    $this->push($room['left_fd'], $resp);
-
-                    $resp = Response::json('当前题目进度异常', -4008);
-                    $this->push($room['right_fd'], $resp);
-                    return;
-                }
-
-                $true_answer = $room['answer_' . $data['current_num']];
-                $player_select = $data['item'];
-                $is_answer_true = $player_select == $true_answer ? true : false;
-
-                CoRedis::pipeline(function($CoRedis) use ($u_id, $is_answer_true, $true_answer, $player_select, $room_id, $room) {
-                    $time = time();
-
-                    $update = [
-                        'current_topic_id' => $room['current_topic_id'] + 1,
-                        'last_answer_time' => $time
-                    ];
-
-                    $res = ['true_answer' => $true_answer, 'player_select' => $player_select];
-
-                    if ($u_id == $room['left_u_id'] && $is_answer_true == true) {
-                        $update['left_answer']  = $room['left_answer'] . 'T';
-                        $update['right_answer'] = $room['right_answer'] . 'F';
-
-                        CoRedis::hmset($room_id, $update);
-
-                        $resp = Response::json('回答正确', 203, $res);
-                        $this->push($room['left_fd'], $resp);
-
-                        $resp = Response::json('对方回答正确', 204, $res);
-                        $this->push($room['right_fd'], $resp);
-                    } else if ($u_id == $room['left_u_id'] && $is_answer_true == false) {
-                        $update['left_answer']  = $room['left_answer'] . 'F';
-                        $update['right_answer'] = $room['right_answer'] . 'T';
-
-                        CoRedis::hmset($room_id, $update);
-
-                        $resp = Response::json('回答错误', 205, $res);
-                        $this->push($room['left_fd'], $resp);
-
-                        $resp = Response::json('对方回答错误', 206, $res);
-                        $this->push($room['right_fd'], $resp);
-                    } else if ($u_id == $room['right_u_id'] && $is_answer_true == true) {
-                        $update['left_answer']  = $room['left_answer'] . 'F';
-                        $update['right_answer'] = $room['right_answer'] . 'T';
-
-                        CoRedis::hmset($room_id, $update);
-
-                        $resp = Response::json('对方回答正确', 204, $res);
-                        $this->push($room['left_fd'], $resp);
-
-                        $resp = Response::json('回答正确', 203, $res);
-                        $this->push($room['right_fd'], $resp);
-                    } else if ($u_id == $room['right_u_id'] && $is_answer_true == false) {
-                        $update['left_answer']  = $room['left_answer'] . 'T';
-                        $update['right_answer'] = $room['right_answer'] . 'F';
-
-                        CoRedis::hmset($room_id, $update);
-
-                        $resp = Response::json('对方回答错误', 206, $res);
-                        $this->push($room['left_fd'], $resp);
-
-                        $resp = Response::json('回答错误', 205, $res);
-                        $this->push($room['right_fd'], $resp);
-                    } else {
-                        CoRedis::del($room_id);
-                        CoRedis::hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
-
-                        $resp = Response::json('还有这种情况？？？', -4009);
-                        $this->push($room['left_fd'], $resp);
-
-                        $resp = Response::json('还有这种情况？？？', -4009);
-                        $this->push($room['right_fd'], $resp);
-                        return;
-                    }
-                });
-
-                $room = CoRedis::hgetall($room_id);
-
-                $arr = Game::isGameEnding($room_id, $room);
-                if (!empty($arr)) {
-                    $resp = Response::json('比赛结束获得奖励', 208, $arr[$room['left_u_id']]);
-                    $this->push($room['left_fd'], $resp);
-
-                    $resp = Response::json('比赛结束获得奖励', 208, $arr[$room['right_u_id']]);
-                    $this->push($room['right_fd'], $resp);
-                }
-
-                break;
-            case 'timeout':
-                //回答超时
-                $time = time();
-
-                //房号id
-                $room_id = CoRedis::hget(REDIS_KEYS['rooms'], $u_id);
-                if (!$room_id) {
-                    $resp = Response::json('您木有在PK噢~', -1);
-                    $this->push($fd, $resp);
-                    return;
-                }
-
-                $lock_name = $this->prefix . $room_id . '_room_lock';
-                $room_lock = CoRedis::setnx($lock_name, $time);
-                if (!$room_lock) {
-                    dump('数据发送重复，已忽略处理');
-                    return;
-                }
-
-
-                list($room, $redisRes[0]) = CoRedis::pipeline(function($CoRedis) use ($room_id, $lock_name) {
-                    CoRedis::hgetall($room_id);
-                    CoRedis::expire($lock_name, $this->answer_countdown - 2);
-                });
-                $room = CoRedis::format($room);
-
-                dump('redis 数据返回', $room, $redisRes);
-
-                //房号详情
-                if (!$room) {
-                    $resp = Response::json('您木有在PK噢~~', -1);
-                    $this->push($fd, $resp);
-                    return;
-                }
+        //             dump('2答题花费时间---' . $time_difference);
+        //         }
 
                 
-                $time_difference = $time - $room['last_answer_time'] - $this->answer_countdown;
-                if ($room['current_topic_id'] == 1) {
-                    $time_difference -= 3;
-                }
 
-                if ($time_difference > 2 || $time_difference < -2) {
-                    //兼容网络传输时间前后1秒
-                    dump('倒计时好像还没结束吧？~', $time_difference, $time, $room['current_topic_id']);
-                    return;
-                }
+        //         if ($time_is_right == false) {
+        //             CoRedis::pipeline(function($CoReids) use ($room_id, $room) {
+        //                 CoRedis::del($room_id);
+        //                 CoRedis::hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
+        //             });
 
-                $redisRes = CoRedis::hmset($room_id, [
-                    'current_topic_id' => $room['current_topic_id'] + 1,
-                    'last_answer_time' => $time,
-                    'left_answer'      => $room['left_answer'] . 'F',
-                    'right_answer'     => $room['right_answer'] . 'F'
-                ]);
-                dump('res is ', $redisRes);
+        //             $resp = Response::json('当前题目进度异常', ResponseCode::ProgressAbnormal);
+        //             $this->push($room['left_fd'], $resp);
 
-                $resp = Response::json('超时回答了哦~', 207);
-                $this->push($room['left_fd'], $resp);
+        //             $resp = Response::json('当前题目进度异常', ResponseCode::ProgressAbnormal);
+        //             $this->push($room['right_fd'], $resp);
+        //             return;
+        //         }
 
-                $resp = Response::json('超时回答了哦~', 207);
-                $this->push($room['right_fd'], $resp);
+        //         $true_answer = $room['answer_' . $data['current_num']];
+        //         $player_select = $data['item'];
+        //         $is_answer_true = $player_select == $true_answer ? true : false;
+
+        //         CoRedis::pipeline(function($CoRedis) use ($u_id, $is_answer_true, $true_answer, $player_select, $room_id, $room) {
+        //             $time = time();
+
+        //             $update = [
+        //                 'current_topic_id' => $room['current_topic_id'] + 1,
+        //                 'last_answer_time' => $time
+        //             ];
+
+        //             $res = ['true_answer' => $true_answer, 'player_select' => $player_select];
+
+        //             if ($u_id == $room['left_u_id'] && $is_answer_true == true) {
+        //                 $update['left_answer']  = $room['left_answer'] . 'T';
+        //                 $update['right_answer'] = $room['right_answer'] . 'F';
+
+        //                 CoRedis::hmset($room_id, $update);
+
+        //                 $resp = Response::json('回答正确', ResponseCode::IAmRight, $res);
+        //                 $this->push($room['left_fd'], $resp);
+
+        //                 $resp = Response::json('对方回答正确', ResponseCode::OpponentRight, $res);
+        //                 $this->push($room['right_fd'], $resp);
+        //             } else if ($u_id == $room['left_u_id'] && $is_answer_true == false) {
+        //                 $update['left_answer']  = $room['left_answer'] . 'F';
+        //                 $update['right_answer'] = $room['right_answer'] . 'T';
+
+        //                 CoRedis::hmset($room_id, $update);
+
+        //                 $resp = Response::json('回答错误', ResponseCode::IAmWrong, $res);
+        //                 $this->push($room['left_fd'], $resp);
+
+        //                 $resp = Response::json('对方回答错误', ResponseCode::OpponentWrong, $res);
+        //                 $this->push($room['right_fd'], $resp);
+        //             } else if ($u_id == $room['right_u_id'] && $is_answer_true == true) {
+        //                 $update['left_answer']  = $room['left_answer'] . 'F';
+        //                 $update['right_answer'] = $room['right_answer'] . 'T';
+
+        //                 CoRedis::hmset($room_id, $update);
+
+        //                 $resp = Response::json('对方回答正确', ResponseCode::OpponentRight, $res);
+        //                 $this->push($room['left_fd'], $resp);
+
+        //                 $resp = Response::json('回答正确', ResponseCode::IAmRight, $res);
+        //                 $this->push($room['right_fd'], $resp);
+        //             } else if ($u_id == $room['right_u_id'] && $is_answer_true == false) {
+        //                 $update['left_answer']  = $room['left_answer'] . 'T';
+        //                 $update['right_answer'] = $room['right_answer'] . 'F';
+
+        //                 CoRedis::hmset($room_id, $update);
+
+        //                 $resp = Response::json('对方回答错误', ResponseCode::OpponentWrong, $res);
+        //                 $this->push($room['left_fd'], $resp);
+
+        //                 $resp = Response::json('回答错误', ResponseCode::IAmWrong, $res);
+        //                 $this->push($room['right_fd'], $resp);
+        //             } else {
+        //                 CoRedis::del($room_id);
+        //                 CoRedis::hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
+
+        //                 $resp = Response::json('还有这种情况？？？', ResponseCode::GameDataBbnormal);
+        //                 $this->push($room['left_fd'], $resp);
+
+        //                 $resp = Response::json('还有这种情况？？？', ResponseCode::GameDataBbnormal);
+        //                 $this->push($room['right_fd'], $resp);
+        //                 return;
+        //             }
+        //         });
+
+        //         $room = CoRedis::hgetall($room_id);
+
+        //         $arr = Game::isGameEnding($room_id, $room);
+        //         if (!empty($arr)) {
+        //             $resp = Response::json('比赛结束获得奖励', ResponseCode::GameEnding, $arr[$room['left_u_id']]);
+        //             $this->push($room['left_fd'], $resp);
+
+        //             $resp = Response::json('比赛结束获得奖励', ResponseCode::GameEnding, $arr[$room['right_u_id']]);
+        //             $this->push($room['right_fd'], $resp);
+        //         }
+
+        //         break;
+        //     case 'timeout':
+        //         //回答超时
+        //         $time = time();
+
+        //         //房号id
+        //         $room_id = CoRedis::hget(REDIS_KEYS['rooms'], $u_id);
+        //         if (!$room_id) {
+        //             $resp = Response::json('您木有在PK噢~', ResponseCode::Error);
+        //             $this->push($fd, $resp);
+        //             return;
+        //         }
+
+        //         $lock_name = $this->prefix . $room_id . '_room_lock';
+        //         $room_lock = CoRedis::setnx($lock_name, $time);
+        //         if (!$room_lock) {
+        //             dump('数据发送重复，已忽略处理');
+        //             return;
+        //         }
+
+
+        //         list($room, $redisRes[0]) = CoRedis::pipeline(function($CoRedis) use ($room_id, $lock_name) {
+        //             CoRedis::hgetall($room_id);
+        //             CoRedis::expire($lock_name, $this->answer_countdown - 2);
+        //         });
+        //         $room = CoRedis::format($room);
+
+        //         dump('redis 数据返回', $room, $redisRes);
+
+        //         //房号详情
+        //         if (!$room) {
+        //             $resp = Response::json('您木有在PK噢~~', ResponseCode::Error);
+        //             $this->push($fd, $resp);
+        //             return;
+        //         }
+
                 
-                $room['left_answer'] .= 'F';
-                $room['right_answer'] .= 'F';
-                $room['current_topic_id'] += 1;
+        //         $time_difference = $time - $room['last_answer_time'] - $this->answer_countdown;
+        //         if ($room['current_topic_id'] == 1) {
+        //             $time_difference -= 3;
+        //         }
 
-                $arr = Game::isGameEnding($room_id, $room);
-                if (!empty($arr)) {
-                    $resp = Response::json('比赛结束获得奖励', 208, $arr[$room['left_u_id']]);
-                    $this->push($room['left_fd'], $resp);
+        //         if ($time_difference > 2 || $time_difference < -2) {
+        //             //兼容网络传输时间前后1秒
+        //             dump('倒计时好像还没结束吧？~', $time_difference, $time, $room['current_topic_id']);
+        //             return;
+        //         }
 
-                    $resp = Response::json('比赛结束获得奖励', 208, $arr[$room['right_u_id']]);
-                    $this->push($room['right_fd'], $resp);
-                }
+        //         $redisRes = CoRedis::hmset($room_id, [
+        //             'current_topic_id' => $room['current_topic_id'] + 1,
+        //             'last_answer_time' => $time,
+        //             'left_answer'      => $room['left_answer'] . 'F',
+        //             'right_answer'     => $room['right_answer'] . 'F'
+        //         ]);
+        //         dump('res is ', $redisRes);
 
-                dump('超时处理执行完毕');
-                break;
-            default:
-                $resp = Response::json('事件类型？...', -1);
-                $this->push($fd, $resp);
-                return;
-                break;
-        }
+        //         $resp = Response::json('超时回答了哦~', ResponseCode::AnswerTimeOut);
+        //         $this->push($room['left_fd'], $resp);
+
+        //         $resp = Response::json('超时回答了哦~', ResponseCode::AnswerTimeOut);
+        //         $this->push($room['right_fd'], $resp);
+                
+        //         $room['left_answer'] .= 'F';
+        //         $room['right_answer'] .= 'F';
+        //         $room['current_topic_id'] += 1;
+
+        //         $arr = Game::isGameEnding($room_id, $room);
+        //         if (!empty($arr)) {
+        //             $resp = Response::json('比赛结束获得奖励', ResponseCode::GameEnding, $arr[$room['left_u_id']]);
+        //             $this->push($room['left_fd'], $resp);
+
+        //             $resp = Response::json('比赛结束获得奖励', ResponseCode::GameEnding, $arr[$room['right_u_id']]);
+        //             $this->push($room['right_fd'], $resp);
+        //         }
+
+        //         dump('超时处理执行完毕');
+        //         break;
+        //     default:
+        //         $resp = Response::json('事件类型？...', ResponseCode::Error);
+        //         $this->push($fd, $resp);
+        //         return;
+        //         break;
+        // }
     }
 
 
@@ -473,53 +425,54 @@ class Tnwz extends Command
      */
     public function onClose($ws, $fd)
     {
-        dump('server:close success');
-        dump('close fd is ' . $fd);
+        WebsocketOnClose::close($ws, $fd);
+        // dump('server:close success');
+        // dump('close fd is ' . $fd);
 
-        $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $fd]);
-        dump('del u_id is ', $u_id);
-        if ($u_id > 0) {
-            $hdel = [
-                [
-                    'key'   => REDIS_KEYS['fds'],
-                    'field' => 'fd_' . $fd
-                ],
-                [
-                    'key'   => REDIS_KEYS['u_ids'],
-                    'field' => 'u_id_' . $u_id
-                ]
-            ];
-            $res = Redis::pipeline(function($pipe) use ($u_id, $hdel) {
-                //删除排位
-                $pipe->srem(REDIS_KEYS['ranking'], $u_id);
+        // $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $fd]);
+        // dump('del u_id is ', $u_id);
+        // if ($u_id > 0) {
+        //     $hdel = [
+        //         [
+        //             'key'   => REDIS_KEYS['fds'],
+        //             'field' => 'fd_' . $fd
+        //         ],
+        //         [
+        //             'key'   => REDIS_KEYS['u_ids'],
+        //             'field' => 'u_id_' . $u_id
+        //         ]
+        //     ];
+        //     $res = Redis::pipeline(function($pipe) use ($u_id, $hdel) {
+        //         //删除排位
+        //         $pipe->srem(REDIS_KEYS['ranking'], $u_id);
 
-                //删除关联数据
-                foreach ($hdel as $key => $value) {
-                    $pipe->hdel($value['key'], $value['field']);
-                }   
-            });
+        //         //删除关联数据
+        //         foreach ($hdel as $key => $value) {
+        //             $pipe->hdel($value['key'], $value['field']);
+        //         }   
+        //     });
 
-            //退出房间号
-            $room_id = Redis::hget(REDIS_KEYS['rooms'], $u_id);
-            if ($room_id) {
-                $room = Redis::hgetall($room_id);
+        //     //退出房间号
+        //     $room_id = Redis::hget(REDIS_KEYS['rooms'], $u_id);
+        //     if ($room_id) {
+        //         $room = Redis::hgetall($room_id);
 
-                if (is_array($room) && !empty($room)) {
-                    dump('del room', $room);
-                    $to_u_id = $room['left_u_id'] == $u_id ? $room['right_u_id'] : $room['left_u_id'];
-                    $to_fd_id = Redis::command('hget', [REDIS_KEYS['u_ids'], 'u_id_' . $to_u_id]);
+        //         if (is_array($room) && !empty($room)) {
+        //             dump('del room', $room);
+        //             $to_u_id = $room['left_u_id'] == $u_id ? $room['right_u_id'] : $room['left_u_id'];
+        //             $to_fd_id = Redis::command('hget', [REDIS_KEYS['u_ids'], 'u_id_' . $to_u_id]);
 
-                    $resp = Response::json('您的对手掉线或者跑掉啦~', 202);
-                    $this->push($to_fd_id, $resp);
+        //             $resp = Response::json('您的对手掉线或者跑掉啦~', 202);
+        //             $this->push($to_fd_id, $resp);
 
-                    //删除房间信息
-                    Redis::pipeline(function($pipe) use ($room_id, $room) {
-                        $pipe->del($room_id);
-                        $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
-                    });
-                }
-            }
-        }
+        //             //删除房间信息
+        //             Redis::pipeline(function($pipe) use ($room_id, $room) {
+        //                 $pipe->del($room_id);
+        //                 $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
+        //             });
+        //         }
+        //     }
+        // }
     }
 
 
