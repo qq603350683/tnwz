@@ -17,6 +17,10 @@ class ResponseCode {
 
 	const UserAbnormal = -4001;
 
+	const AlreadyInRanking = -4006;
+
+	const UserInPKStatus = -4007;
+
 	const ProgressAbnormal = -4008;  
 
 	const SystemAbnormal = -4099;

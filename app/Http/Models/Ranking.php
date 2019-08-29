@@ -10,26 +10,35 @@ class Ranking {
 	 * @param 
 	 * @return 
 	 */
-	public static function join($u_id)
+	public static function join($u_id = 0)
 	{
-		$res = Redis::pipeline(function($pipe) use ($u_id) {
-			//判断是否重复加入队列
-			$pipe->sismember(REDIS_KEYS['ranking'], $u_id);
+		$u_id = $u_id > 0 ? $u_id : $GLOBALS['u_id'];
 
-			//判断是否正在PK中。
-			$pipe->sismember(REDIS_KEYS['rooms'], $u_id);
+		$res = CoRedis::pipeline(function($CoRedis) use ($u_id) {
+			CoRedis::sismember(REDIS_KEYS['ranking'], $u_id);
+
+			CoRedis::sismember(REDIS_KEYS['rooms'], $u_id);
 		});
-		if ($res[0] == 1)
-			return -4006;
 
-		if ($res[1] == 1)
-			return -4007;
+		if ($res[0] == 1) {
+			WebsocketBase::push($GLOBALS['fd'], '您已经加入排队中了哦~', ResponseCode::AlreadyInRanking);
+			return fasle;
+		}
 
-		// $resp = Response::json('qqqqqqqqqqqq', -1);
-		// ($GLOBALS['ws'])->push(1, $resp);
+		if ($res[1] == 1) {
+			WebsocketBase::push($GLOBALS['fd'], '您正在PK呢！', ResponseCode::UserInPKStatus);
+			return false;
+		}
 
-		$res = Redis::command('sadd', [REDIS_KEYS['ranking'], $u_id]);
-		return $res ? 1 : -1;
+		$res = CoRedis::sadd(REDIS_KEYS['ranking'], $u_id);
+		if ($res == 0) {
+			WebsocketBase::push($GLOBALS['fd'], '加入排队失败~', ResponseCode::Error);
+			return false;
+		}
+
+		WebsocketBase::push($GLOBALS['fd'], '加入排位队列成功', ResponseCode::Success);
+
+		return true;
 	}
 
 
@@ -72,12 +81,11 @@ class Ranking {
 	 */
 	public static function quit($u_id)
 	{
-		$res = Redis::command('sismember', [REDIS_KEYS['ranking'], $u_id]);
-		if (!$res)
-			return false;
+		CoRedis::srem(REDIS_KEYS['ranking'], $u_id);
 
-		$res = Redis::command('srem', [REDIS_KEYS['ranking'], $u_id]);
-		return $res ? true : false;
+		WebsocketBase::push($GLOBALS['fd'], '退出排位队列成功', ResponseCode::Success);
+
+		return true;
 	}
 
 
@@ -89,7 +97,7 @@ class Ranking {
 	 */
 	public static function len()
 	{
-		$len = Redis::scard(REDIS_KEYS['ranking']);
+		$len = CoRedis::scard(REDIS_KEYS['ranking']);
 		return $len;
 	}
 
@@ -102,9 +110,9 @@ class Ranking {
 	 */
 	public static function random($count)
 	{
-		return Redis::pipeline(function($pipe) use ($count) {
+		return CoRedis::pipeline(function($CoRedis) use ($count) {
 			for ($i=0; $i < $count; $i++) { 
-				$pipe->spop(REDIS_KEYS['ranking']);
+				CoRedis::spop(REDIS_KEYS['ranking']);
 			}
         });
 	}

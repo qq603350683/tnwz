@@ -107,6 +107,37 @@ class CoRedis
 	}
 
 
+	public static function sismember($key, $field)
+	{
+		return self::getInstance()->sismember($key, $field);
+	}
+
+
+
+	public static function sadd($key, $value)
+	{
+		return self::getInstance()->sadd($key, $value);
+	}
+
+
+	public static function srem($key, $field)
+	{
+		return self::getInstance()->srem($key, $field);
+	}
+
+
+	public static function scard($key)
+	{
+		return self::getInstance()->scard($key);
+	}
+
+
+	public static function spop($key)
+	{
+		return self::getInstance()->spop($key);
+	}
+
+
 	public static function pipeline($callback)
 	{
 		$CoRedis = self::getInstance();

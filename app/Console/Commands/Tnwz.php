@@ -38,9 +38,9 @@ class Tnwz extends Command
 
 
     protected $ws;
-    protected $redis;
-    protected $prefix = 'tnwz_';
-    protected $answer_countdown = 4;
+    // protected $redis;
+    // protected $prefix = 'tnwz_';
+    // protected $answer_countdown = 4;
 
 
 
@@ -51,16 +51,19 @@ class Tnwz extends Command
      */
     public function __construct()
     {
+        define('PREFIX', 'tnwz_');
+        define('ANSWER_COUNTDOWN', 4);
+
         define('REDIS_CONFIG', [
             'host' => '127.0.0.1',
             'port' => 6379
         ]);
 
         define('REDIS_KEYS', [
-            'fds'     => $this->prefix . 'fd',      //u_id -> fd
-            'u_ids'   => $this->prefix . 'u_id',    //fd -> u_id
-            'ranking' => $this->prefix . 'ranking', //排队队列
-            'rooms'   => $this->prefix . 'room'     //房间号,
+            'fds'     => PREFIX . 'fd',      //u_id -> fd
+            'u_ids'   => PREFIX . 'u_id',    //fd -> u_id
+            'ranking' => PREFIX . 'ranking', //排队队列
+            'rooms'   => PREFIX . 'room'     //房间号,
         ]);
         parent::__construct();
     }
@@ -347,7 +350,7 @@ class Tnwz extends Command
         //             return;
         //         }
 
-        //         $lock_name = $this->prefix . $room_id . '_room_lock';
+        //         $lock_name = PREFIX . $room_id . '_room_lock';
         //         $room_lock = CoRedis::setnx($lock_name, $time);
         //         if (!$room_lock) {
         //             dump('数据发送重复，已忽略处理');
@@ -511,7 +514,7 @@ class Tnwz extends Command
                     //生成房间信息
                     $flags = true;
                     do {
-                        $room_id = $this->prefix . mt_rand(1000, 9999);
+                        $room_id = PREFIX . mt_rand(1000, 9999);
                         $flags = Redis::exists($room_id);
                     } while($flags);
 

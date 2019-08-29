@@ -96,9 +96,12 @@ class Game
                 $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
             });
 
-            return $result;
+            WebsocketBase::push($room['left_fd'], '比赛结束获得奖励', ResponseCode::GameEnding, $result[$room['left_u_id']]);
+            WebsocketBase::push($room['right_fd'], '比赛结束获得奖励', ResponseCode::GameEnding, $result[$room['right_u_id']]);
+
+            return true;
         }
 
-        return [];
+        return fasle;
 	}
 }

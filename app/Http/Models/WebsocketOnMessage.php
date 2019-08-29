@@ -27,6 +27,9 @@ class WebsocketOnMessage extends WebsocketBase {
             return;
         }
 
+        $GLOBALS['fd'] = $fd;
+        $GLOBALS['u_id'] = $u_id;
+
         switch ($case) {
             case 'close':
                 //关系连接
@@ -38,30 +41,12 @@ class WebsocketOnMessage extends WebsocketBase {
             case 'join_ranking':
                 //加入PK排队队列
                 $res = Ranking::join($u_id);
-                if ($res == -4006) {
-                    dump('u_id: ' . $u_id . ' '  . $res);
-                    self::push($fd, '加入排位排队失败', $res);
-                    return;
-                }
-
-                if ($res == -4007) {
-                    dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
-                    self::push($fd, '您正在PK呢！', $res);
-                    return;
-                }
-
-                if ($res == -1) {
-                    dump('u_id: ' . $u_id . ' 加入排位排队失败'  . $res);
-                    self::push($fd, '系统出现了一点错误，请重新连接', $res);
-                    return;
-                }
-
-                dump('u_id: ' . $u_id . ' 加入排位排队成功');
+                dump('Service: u_id: ' . $u_id . ' 加入排位排队成功');
                 break;
             case 'quit_ranking':
                 //退出PK排队队列
                 $res = Ranking::quit($u_id);
-                dump('u_id: ' . $u_id . ' 退出排位排队' . ($res == true ? '成功' : '失败'));
+                dump('Service: u_id: ' . $u_id . ' 退出排位排队' . ($res == true ? '成功' : '失败'));
                 break;
             case 'item_select':
                 if (!isset($data['item'])) {
@@ -102,12 +87,12 @@ class WebsocketOnMessage extends WebsocketBase {
                 $time_is_right = false;
                 if ($room['current_topic_id'] == 1) {
                     //这里减去3秒是前段动画时间
-                    if ($time_difference - 3 <= $this->answer_countdown)
+                    if ($time_difference - 3 <= ANSWER_COUNTDOWN)
                         $time_is_right = true;
 
                     dump('1答题花费时间---' . ($time_difference - 3));
                 } else {
-                    if ($time_difference <= $this->answer_countdown)
+                    if ($time_difference <= ANSWER_COUNTDOWN)
                         $time_is_right = true;
 
                     dump('2答题花费时间---' . $time_difference);
@@ -184,12 +169,7 @@ class WebsocketOnMessage extends WebsocketBase {
 
                 $room = CoRedis::hgetall($room_id);
 
-                $arr = Game::isGameEnding($room_id, $room);
-                if (!empty($arr)) {
-                    self::push($room['left_fd'], '比赛结束获得奖励', ResponseCode::GameEnding, $arr[$room['left_u_id']]);
-                    self::push($room['right_fd'], '比赛结束获得奖励', ResponseCode::GameEnding, $arr[$room['right_u_id']]);
-                }
-
+                Game::isGameEnding($room_id, $room);
                 break;
             case 'timeout':
                 //回答超时
@@ -202,7 +182,7 @@ class WebsocketOnMessage extends WebsocketBase {
                     return;
                 }
 
-                $lock_name = $this->prefix . $room_id . '_room_lock';
+                $lock_name = PREFIX . $room_id . '_room_lock';
                 $room_lock = CoRedis::setnx($lock_name, $time);
                 if (!$room_lock) {
                     dump('数据发送重复，已忽略处理');
@@ -212,7 +192,7 @@ class WebsocketOnMessage extends WebsocketBase {
 
                 list($room, $redisRes[0]) = CoRedis::pipeline(function($CoRedis) use ($room_id, $lock_name) {
                     CoRedis::hgetall($room_id);
-                    CoRedis::expire($lock_name, $this->answer_countdown - 2);
+                    CoRedis::expire($lock_name, ANSWER_COUNTDOWN - 2);
                 });
                 $room = CoRedis::format($room);
 
@@ -225,7 +205,7 @@ class WebsocketOnMessage extends WebsocketBase {
                 }
 
                 
-                $time_difference = $time - $room['last_answer_time'] - $this->answer_countdown;
+                $time_difference = $time - $room['last_answer_time'] - ANSWER_COUNTDOWN;
                 if ($room['current_topic_id'] == 1) {
                     $time_difference -= 3;
                 }
@@ -251,12 +231,7 @@ class WebsocketOnMessage extends WebsocketBase {
                 $room['right_answer'] .= 'F';
                 $room['current_topic_id'] += 1;
 
-                $arr = Game::isGameEnding($room_id, $room);
-                if (!empty($arr)) {
-                    self::push($room['left_fd'], '比赛结束获得奖励', ResponseCode::GameEnding, $arr[$room['left_u_id']]);
-                    self::push($room['right_fd'], '比赛结束获得奖励', ResponseCode::GameEnding, $arr[$room['right_u_id']]);
-                }
-
+                Game::isGameEnding($room_id, $room);
                 dump('超时处理执行完毕');
                 break;
             default:
