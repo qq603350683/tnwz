@@ -976,7 +976,6 @@
 		PK.left_score += 1;
 
     	var percent =  PK.left_score / parseInt((PK.topicTotalNum / 2) + 1) * 100;
-    	console.log('xxxxxxxxxxx' + percent)
     	PK.processUpdate('left', percent);
     	if (percent == 100)
     		return false;
