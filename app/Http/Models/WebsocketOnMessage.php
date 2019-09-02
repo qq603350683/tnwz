@@ -2,15 +2,15 @@
 namespace App\Http\Models;
 
 class WebsocketOnMessage extends WebsocketBase {
-	public static function message($ws, $request)
+	public static function index($ws, $request)
 	{
         $GLOBALS['ws'] = $ws;
         
         $fd = $request->fd;
         $data = json_decode($request->data, true);
-        dump('server:message fd is ' . $fd);
-        dump('server:message data is ' . $request->data);
-        dump('server:message opcode is ' . $request->opcode);
+        dump('Server:message fd is ' . $fd);
+        dump('Server:message data is ' . $request->data);
+        dump('Server:message opcode is ' . $request->opcode);
 
         if (!$data || !is_array($data)) {
             self::push($fd, '我不知道你在传什么东西~', ResponseCode::Error);
@@ -210,7 +210,7 @@ class WebsocketOnMessage extends WebsocketBase {
                     $time_difference -= 3;
                 }
 
-                if ($time_difference > 2 || $time_difference < -2) {
+                if ($time_difference > 1 || $time_difference < -1) {
                     //兼容网络传输时间前后1秒
                     dump('倒计时好像还没结束吧？~', $time_difference, $time, $room['current_topic_id']);
                     return;

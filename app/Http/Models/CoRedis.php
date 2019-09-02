@@ -55,6 +55,12 @@ class CoRedis
 	}
 
 
+	public static function exists($key)
+	{
+		return self::getInstance()->exists($key);
+	}
+
+
 	public static function setnx($key, $value)
 	{
 		return self::getInstance()->setnx($key, $value);
@@ -91,12 +97,18 @@ class CoRedis
 	}
 
 
+	public static function hmget($key, ...$array)
+	{
+		return self::getInstance()->hmget($key, $array);
+	}
+
+
 	public static function hgetall($key)
 	{
 		$all = self::getInstance()->hgetall($key);
 		if (is_null($all) || empty($all) || !is_array($all))
 			return $all;
-		// dump('hgetall: ' . $key, $all);
+		
 		return self::format($all);
 	}
 

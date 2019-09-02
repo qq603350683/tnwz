@@ -276,6 +276,8 @@
 				get_gold.innerHTML = '+' + data.data.gold;
 				get_exp.innerHTML = '+' + data.data.exp;
 				PK.endingShow();
+
+				PK.ending(data.data.result);
 				break;
 			case -1:
 				Message.show('warning', data.message);
@@ -823,6 +825,8 @@
 				Base.css(document.getElementById('pk-main'), {'width' : clientCssWidth + 'px'});
 				_countdown = countdown;
 
+				document.getElementById("pk-time-num").innerText = _countdown;
+
 				PK.itemStatus = 0;
 
 				setTimeout(function() {
@@ -1060,11 +1064,14 @@
 		PK.countdown_id = '';
 
 		switch (direction) {
-			case 'left':
+			case 'victory':
 				Message.show('success', '恭喜您，获得本场游戏胜利');
 				break;
-			case 'right':
+			case 'defeat':
 				Message.show('fail', '很遗憾，本场游戏失败了~');
+				break;
+			case 'flat':
+				Message.show('success', '本场对局平手~');
 				break;
 		}
 		
@@ -1105,9 +1112,7 @@
 			_percent += diff;
 			Base.css(dom, {'height' : _percent + '%'});
 
-			if (_percent == 100) {
-				PK.ending(direction);
-			} else {
+			if (_percent < 100) {
 				setTimeout(function() {
 					PK.processUpdate(direction, percent);
 				}, 20);
@@ -1139,8 +1144,8 @@
 
 	//------------------------------------------------------------------连接Websocket-----start----------------------------
 	var WsServicer = window.WsServicer = function() {
-		this.host = 'ws://192.168.26.129';
-		// this.host = 'ws://192.168.83.133';
+		// this.host = 'ws://192.168.26.129';
+		this.host = 'ws://192.168.83.133';
 		this.prot = '9501';
 		
 	};
@@ -1444,7 +1449,25 @@
     					'b' : '含脂肪',
     					'c' : '含糖',
     					'd' : '',
-    				}
+    				},
+    				{
+    					'ts_id' : 1,
+    					'question' : '吃冰淇淋不解渴主要是因为它',
+    					'img' : '',
+    					'a' : '含蛋白质',
+    					'b' : '含脂肪',
+    					'c' : '含糖',
+    					'd' : '',
+    				},
+    				{
+    					'ts_id' : 1,
+    					'question' : '吃冰淇淋不解渴主要是因为它',
+    					'img' : '',
+    					'a' : '含蛋白质',
+    					'b' : '含脂肪',
+    					'c' : '含糖',
+    					'd' : '',
+    				},
     			]
     		},
     		'message' : '匹配到对手啦~',

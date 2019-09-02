@@ -4,6 +4,8 @@ namespace App\Http\Models;
 class ResponseCode {
 	const Success = 200;
 
+	const OpponentAbstained  = 202;
+
 	const IAmRight = 203;
 	const OpponentRight = 204;
 	const IAmWrong = 205;

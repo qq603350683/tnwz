@@ -2,7 +2,7 @@
 namespace App\Http\Models;
 
 class WebsocketOnOpen extends WebsocketBase {
-	public static function open($ws, $request)
+	public static function index($ws, $request)
 	{
 		$GLOBALS['ws'] = $ws;
 

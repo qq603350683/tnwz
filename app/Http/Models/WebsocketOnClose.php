@@ -1,16 +1,14 @@
 <?php
 namespace App\Http\Models;
 
-use Illuminate\Support\Facades\Redis;
-
 class WebsocketOnClose {
-	public static function close($ws, $fd)
+	public static function index($ws, $fd)
     {
-        dump('server:close success');
-        dump('close fd is ' . $fd);
+        dump('Server: close fd ' . $fd . ' success');
+        dump('Service: del u_id is '. $u_id);
 
-        $u_id = Redis::command('hget', [REDIS_KEYS['fds'], 'fd_' . $fd]);
-        dump('del u_id is ', $u_id);
+        $u_id = CoRedis::hget(REDIS_KEYS['fds'], 'fd_' . $fd);
+        
         if ($u_id > 0) {
             $hdel = [
                 [
@@ -22,33 +20,33 @@ class WebsocketOnClose {
                     'field' => 'u_id_' . $u_id
                 ]
             ];
-            $res = Redis::pipeline(function($pipe) use ($u_id, $hdel) {
-                //删除排位
-                $pipe->srem(REDIS_KEYS['ranking'], $u_id);
 
-                //删除关联数据
+            $res = CoRedis::pipeline(function($CoRedis) use ($u_id, $hdel) {
+                CoRedis::srem(REDIS_KEYS['ranking'], $u_id);
+
                 foreach ($hdel as $key => $value) {
-                    $pipe->hdel($value['key'], $value['field']);
-                }   
+                    CoRedis::hdel($value['key'], $value['field']);
+                }
             });
 
             //退出房间号
-            $room_id = Redis::hget(REDIS_KEYS['rooms'], $u_id);
+            $room_id = CoRedis::hget(REDIS_KEYS['rooms'], $u_id);
             if ($room_id) {
-                $room = Redis::hgetall($room_id);
+                $room = CoRedis::hgetall($room_id);
 
                 if (is_array($room) && !empty($room)) {
-                    dump('del room', $room);
+                    dump('Service: del room' . $room);
                     $to_u_id = $room['left_u_id'] == $u_id ? $room['right_u_id'] : $room['left_u_id'];
-                    $to_fd_id = Redis::command('hget', [REDIS_KEYS['u_ids'], 'u_id_' . $to_u_id]);
+                    $to_fd_id = CoRedis::hget(REDIS_KEYS['u_ids'], 'u_id_' . $to_u_id);
 
-                    $resp = Response::json('您的对手掉线或者跑掉啦~', 202);
-                    $this->push($to_fd_id, $resp);
+                    self::push($to_fd_id, '您的对手掉线或者跑掉啦~', ResponseCode::OpponentAbstained);
 
                     //删除房间信息
-                    Redis::pipeline(function($pipe) use ($room_id, $room) {
-                        $pipe->del($room_id);
-                        $pipe->hdel(REDIS_KEYS['rooms'], $room['left_u_id'], $room['right_u_id']);
+                    CoRedis::pipeline(function($CoRedis) use ($room_id, $room) {
+                        CoRedis::del($room_id);
+
+                        CoRedis::hdel(REDIS_KEYS['rooms'], $room['left_u_id']);
+                        CoRedis::hdel(REDIS_KEYS['rooms'], $room['right_u_id']);
                     });
                 }
             }

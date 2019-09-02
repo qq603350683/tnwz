@@ -12,7 +12,7 @@ class Game
 	 *
 	 *
 	 */
-	public static function isGameEnding($room_id, $room):array
+	public static function isGameEnding($room_id, $room):bool
 	{
 		if (!is_array($room) || empty($room))
 			return [];
@@ -50,12 +50,14 @@ class Game
                 $victory_u_id = $room['left_u_id'];
                 $result = [
                     $room['left_u_id']  => [
-                        'gold' => $config['victory_gold'],
-                        'exp'  => $config['victory_exp']
+                        'gold'   => $config['victory_gold'],
+                        'exp'    => $config['victory_exp'],
+                        'result' => 'victory'
                     ],
                     $room['right_u_id'] => [
-                        'gold' => $config['defeat_gold'],
-                        'exp'  => $config['defeat_exp']
+                        'gold'   => $config['defeat_gold'],
+                        'exp'    => $config['defeat_exp'],
+                        'result' => 'defeat'
                     ]
                 ];
             } else if ($res == 0) {
@@ -63,12 +65,14 @@ class Game
                 $victory_u_id = 0;
                 $result = [
                     $room['left_u_id']  => [
-                        'gold' => $config['flat_gold'],
-                        'exp'  => $config['flat_exp']
+                        'gold'   => $config['flat_gold'],
+                        'exp'    => $config['flat_exp'],
+                        'result' => 'flat'
                     ],
                     $room['right_u_id'] => [
-                        'gold' => $config['flat_gold'],
-                        'exp'  => $config['flat_exp']
+                        'gold'   => $config['flat_gold'],
+                        'exp'    => $config['flat_exp'],
+                        'result' => 'flat'
                     ]
                 ];
             } else if ($res == -1) {
@@ -76,12 +80,14 @@ class Game
                 $victory_u_id = $room['right_u_id'];
                 $result = [
                     $room['left_u_id']  => [
-                        'gold' => $config['defeat_gold'],
-                        'exp'  => $config['defeat_exp']
+                        'gold'   => $config['defeat_gold'],
+                        'exp'    => $config['defeat_exp'],
+                        'result' => 'defeat'
                     ],
                     $room['right_u_id'] => [
-                        'gold' => $config['victory_gold'],
-                        'exp'  => $config['victory_exp']
+                        'gold'   => $config['victory_gold'],
+                        'exp'    => $config['victory_exp'],
+                        'result' => 'victory'
                     ]
                 ];
             } else {
@@ -102,6 +108,6 @@ class Game
             return true;
         }
 
-        return fasle;
+        return false;
 	}
 }
