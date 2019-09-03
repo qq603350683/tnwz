@@ -11,11 +11,14 @@ class Users extends Model
 
 	protected $primaryKey = 'u_id';
 
-	public static function info($u_id, $select = '*'):array
+	public static function info($u_id, $select = '*')
 	{
+		// getBindings();/
 		$info = Users::where('u_id', $u_id)
 			->select($select)
-			->first();
+			->toSql();
+
+		return $info;
 
 		if (empty($info))
 			throw new ApiException('Current user does not exists', -1);

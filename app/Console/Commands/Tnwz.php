@@ -11,6 +11,7 @@ use App\Http\Models\{
     Users,
     Topics,
     Ranking,
+    CoMySQL,
     CoRedis,
     Response,
     ResponseCode,

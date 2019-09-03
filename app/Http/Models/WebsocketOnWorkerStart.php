@@ -10,6 +10,15 @@ class WebsocketOnWorkerStart extends WebsocketBase {
             case 0:
                 //2秒一次检测所有队列是否有队友
                 swoole_timer_tick(2000, function() use ($ws, $worker_id) {
+                    CoMySQL::begin();
+
+                    $sql = Users::info(1);
+
+                    dump($sql);
+
+                    $res = CoMySQL::query('select * from users');
+                    dump($res);
+
                     $len = Ranking::len();
                     dump('当前队列排队人数：' . $len . '人');
 
