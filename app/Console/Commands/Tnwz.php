@@ -15,6 +15,7 @@ use App\Http\Models\{
     CoRedis,
     Response,
     ResponseCode,
+    WebsocketLog,
     AdminsConfigs,
     WebsocketOnOpen,
     WebsocketOnClose,
@@ -90,6 +91,13 @@ class Tnwz extends Command
         //清空Redis
         foreach (REDIS_KEYS as $key => $value) {
             Redis::del($value);
+        }
+
+        //创建日志文件
+        $dir = storage_path('/swoole');
+        if (!is_dir($dir)) {
+            mkdir($dir);
+            chmod($dir, 0755);
         }
 
         $this->ws->on('open',       'App\Http\Models\WebsocketOnOpen::index');

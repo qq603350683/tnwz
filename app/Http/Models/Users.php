@@ -13,10 +13,9 @@ class Users extends Model
 
 	public static function info($u_id, $select = '*')
 	{
-		// getBindings();/
-		$info = Users::where('u_id', $u_id)
-			->select($select)
-			->toSql();
+		$info = Users::select($select)
+			->where('u_id', $u_id)
+			->first();
 
 		return $info;
 
