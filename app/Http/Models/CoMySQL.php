@@ -9,32 +9,22 @@ class CoMySQL
 
 	public static $DB = null;
 
-
-	public static function getInstance()
+	private function __construct($size = 2)
 	{
-		if (is_null(self::$instance)) {
-			$num = 2;
+		$this->channel = new \Swoole\Coroutine\Channel($size);
 
-			$chan = new \Swoole\Coroutine\Channel($num);
-
-			for ($i=0; $i < $num; $i++) {
-				go(function() use ($chan) {
-					$DB = self::connect(true);
-					if ($DB)
-						$chan->push($DB);
-				});
-				
-				\swoole_event::wait();
-
-				self::$instance = $chan;
-			}
+		while ($size--) {
+			$this->connect(true);
 		}
-
-		return self::$instance;
 	}
 
 
-	public static function connect($is_push_chan = false)
+	private function __clone()
+	{
+
+	}
+
+	public function connect($is_push_chan = false)
 	{
 		$DB = new \Swoole\Coroutine\MySQL();
 		$res = $DB->connect([
@@ -47,10 +37,33 @@ class CoMySQL
 		if (!$res)
 			return false;
 
+		// if ($is_push_chan == true)
+		// 	self::getInstance()->push($DB);
 		if ($is_push_chan == true)
-			self::getInstance()->push($DB);
+			$this->put($DB);
 
 		return $DB;
+	}
+
+
+	public function put(\Swoole\Coroutine\MySQL $MySQL):void
+	{
+		$this->channel->push($MySQL);
+	}
+
+
+	public function get($timeout = -1): ?\Swoole\Coroutine\MySQL
+	{
+		return $this->channel->pop($timeout) ?: null;
+	}
+
+
+	public static function getInstance()
+	{
+		if (!self::$instance instanceof self)
+			self::$instance = new self();
+
+		return self::$instance;
 	}
 
 
@@ -104,7 +117,7 @@ class CoMySQL
 	 */
 	public static function query($sql, $params = [])
 	{
-		self::$DB = self::getInstance()->pop();
+		self::$DB = self::getInstance()->get();
 
 		if (self::$begin == true)
 			self::$DB->begin();

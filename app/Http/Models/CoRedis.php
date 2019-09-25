@@ -24,7 +24,7 @@ class CoRedis
 
 	public static function getInstance()
 	{
-		if (is_null(self::$instance)) {
+		if (self::$instance instanceof self) {
 			$redis = new \Swoole\Coroutine\Redis();
        		$redis->connect(REDIS_CONFIG['host'], REDIS_CONFIG['port']);
        		self::$instance = $redis;
